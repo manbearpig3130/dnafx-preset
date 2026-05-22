@@ -2,16 +2,12 @@
 
 `dnafx-preset` is a standalone Python library and CLI for switching presets on a DNAfx device.
 
-It embeds its preset data in Python code and does not import anything from the original `server/src` runtime.
-
 When run in listener mode, it also exposes a virtual MIDI input port to macOS and translates incoming Program Change messages into DNAfx preset changes.
 
 ## Scope
 
 - Switch to a preset by numeric slot.
 - Listen on a virtual MIDI input and map MIDI Program Change to preset slots.
-
-The package intentionally does not include looper, GPIO, socket, audio, or interactive shell features.
 
 ## Install
 
