@@ -87,5 +87,6 @@ sudo dnafx-preset --vendor-id 0483 --product-id 5703 --out-endpoint 02 listen --
 ## Development
 
 ```bash
-python -m unittest discover -s dnafx-preset/tests
+pip install -e ".[test]"
+python -m pytest
 ```

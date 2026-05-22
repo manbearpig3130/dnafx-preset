@@ -1,5 +1,3 @@
-import unittest
-
 from dnafx_preset.listener import MidiProgramChangeListener
 
 
@@ -44,69 +42,69 @@ class FakeMidiIn:
         self.closed = True
 
 
-class MidiProgramChangeListenerTests(unittest.TestCase):
-    def test_program_change_maps_to_first_bank_slots(self) -> None:
-        client = FakeClient()
-        listener = MidiProgramChangeListener(client, channel=0)
+def test_program_change_maps_to_first_bank_slots() -> None:
+    client = FakeClient()
+    listener = MidiProgramChangeListener(client, channel=0)
 
-        slot_number = listener.process_message([0xC0, 0])
+    slot_number = listener.process_message([0xC0, 0])
 
-        self.assertEqual(slot_number, 1)
-        self.assertEqual(client.switch_calls, [1])
-
-    def test_wrong_channel_is_ignored(self) -> None:
-        client = FakeClient()
-        listener = MidiProgramChangeListener(client, channel=0)
-
-        slot_number = listener.process_message([0xC2, 0])
-
-        self.assertIsNone(slot_number)
-        self.assertEqual(client.switch_calls, [])
-
-    def test_next_channel_selects_upper_bank(self) -> None:
-        client = FakeClient()
-        listener = MidiProgramChangeListener(client, channel=0)
-
-        slot_number = listener.process_message([0xC1, 0])
-
-        self.assertEqual(slot_number, 129)
-        self.assertEqual(client.switch_calls, [129])
-
-    def test_configured_base_channel_uses_next_channel_for_upper_bank(self) -> None:
-        client = FakeClient()
-        listener = MidiProgramChangeListener(client, channel=2)
-
-        slot_number = listener.process_message([0xC3, 0])
-
-        self.assertEqual(slot_number, 129)
-        self.assertEqual(client.switch_calls, [129])
-
-    def test_out_of_range_bank_program_is_ignored(self) -> None:
-        client = FakeClient(slot_count=201)
-        listener = MidiProgramChangeListener(client, channel=0)
-
-        slot_number = listener.process_message([0xC1, 127])
-
-        self.assertIsNone(slot_number)
-        self.assertEqual(client.switch_calls, [])
-
-    def test_listen_reports_switch_errors_and_keeps_port_open(self) -> None:
-        errors: list[str] = []
-        midi_in = FakeMidiIn([([0xC0, 0], 0.0), KeyboardInterrupt()])
-        listener = MidiProgramChangeListener(
-            RaisingClient(),
-            channel=0,
-            midi_in_factory=lambda: midi_in,
-            error_handler=lambda exc: errors.append(str(exc)),
-            idle_sleep=0.0,
-        )
-
-        listener.listen()
-
-        self.assertEqual(midi_in.opened_port_name, "DNAfx Preset In")
-        self.assertEqual(errors, ["unable to switch to 1"])
-        self.assertTrue(midi_in.closed)
+    assert slot_number == 1
+    assert client.switch_calls == [1]
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_wrong_channel_is_ignored() -> None:
+    client = FakeClient()
+    listener = MidiProgramChangeListener(client, channel=0)
+
+    slot_number = listener.process_message([0xC2, 0])
+
+    assert slot_number is None
+    assert client.switch_calls == []
+
+
+def test_next_channel_selects_upper_bank() -> None:
+    client = FakeClient()
+    listener = MidiProgramChangeListener(client, channel=0)
+
+    slot_number = listener.process_message([0xC1, 0])
+
+    assert slot_number == 129
+    assert client.switch_calls == [129]
+
+
+def test_configured_base_channel_uses_next_channel_for_upper_bank() -> None:
+    client = FakeClient()
+    listener = MidiProgramChangeListener(client, channel=2)
+
+    slot_number = listener.process_message([0xC3, 0])
+
+    assert slot_number == 129
+    assert client.switch_calls == [129]
+
+
+def test_out_of_range_bank_program_is_ignored() -> None:
+    client = FakeClient(slot_count=201)
+    listener = MidiProgramChangeListener(client, channel=0)
+
+    slot_number = listener.process_message([0xC1, 127])
+
+    assert slot_number is None
+    assert client.switch_calls == []
+
+
+def test_listen_reports_switch_errors_and_keeps_port_open() -> None:
+    errors: list[str] = []
+    midi_in = FakeMidiIn([([0xC0, 0], 0.0), KeyboardInterrupt()])
+    listener = MidiProgramChangeListener(
+        RaisingClient(),
+        channel=0,
+        midi_in_factory=lambda: midi_in,
+        error_handler=lambda exc: errors.append(str(exc)),
+        idle_sleep=0.0,
+    )
+
+    listener.listen()
+
+    assert midi_in.opened_port_name == "DNAfx Preset In"
+    assert errors == ["unable to switch to 1"]
+    assert midi_in.closed is True

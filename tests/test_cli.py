@@ -1,6 +1,5 @@
 from io import StringIO
 from unittest.mock import patch
-import unittest
 
 from dnafx_preset.cli import main
 from dnafx_preset.presets import PresetSelection
@@ -34,32 +33,28 @@ class FakeListener:
         self.listen_calls += 1
 
 
-class CliTests(unittest.TestCase):
-    def test_set_uses_client(self) -> None:
-        stdout = StringIO()
-        stderr = StringIO()
+def test_set_uses_client() -> None:
+    stdout = StringIO()
+    stderr = StringIO()
 
-        with patch("dnafx_preset.cli.build_client", return_value=FakeClient()):
-            exit_code = main(["set", "1"], stdout=stdout, stderr=stderr)
+    with patch("dnafx_preset.cli.build_client", return_value=FakeClient()):
+        exit_code = main(["set", "1"], stdout=stdout, stderr=stderr)
 
-        self.assertEqual(exit_code, 0)
-        self.assertIn("Switched to slot 1", stdout.getvalue())
-        self.assertEqual(stderr.getvalue(), "")
-
-    def test_listen_uses_listener(self) -> None:
-        stdout = StringIO()
-        stderr = StringIO()
-        listener = FakeListener(channel=0, port_name="DNAfx Preset In")
-
-        with patch("dnafx_preset.cli.build_listener_with_error_handler", return_value=listener):
-            exit_code = main(["listen"], stdout=stdout, stderr=stderr)
-
-        self.assertEqual(exit_code, 0)
-        self.assertEqual(listener.listen_calls, 1)
-        self.assertIn("Listening on virtual MIDI input 'DNAfx Preset In'", stdout.getvalue())
-        self.assertIn("raw channels 0 and 1", stdout.getvalue())
-        self.assertEqual(stderr.getvalue(), "")
+    assert exit_code == 0
+    assert "Switched to slot 1" in stdout.getvalue()
+    assert stderr.getvalue() == ""
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_listen_uses_listener() -> None:
+    stdout = StringIO()
+    stderr = StringIO()
+    listener = FakeListener(channel=0, port_name="DNAfx Preset In")
+
+    with patch("dnafx_preset.cli.build_listener_with_error_handler", return_value=listener):
+        exit_code = main(["listen"], stdout=stdout, stderr=stderr)
+
+    assert exit_code == 0
+    assert listener.listen_calls == 1
+    assert "Listening on virtual MIDI input 'DNAfx Preset In'" in stdout.getvalue()
+    assert "raw channels 0 and 1" in stdout.getvalue()
+    assert stderr.getvalue() == ""

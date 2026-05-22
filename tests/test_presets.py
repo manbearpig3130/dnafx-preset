@@ -1,29 +1,29 @@
-import unittest
+import pytest
 
 from dnafx_preset.presets import PresetCatalog
 
 
-class PresetCatalogTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.catalog = PresetCatalog.load()
-
-    def test_loads_numeric_slots(self) -> None:
-        self.assertEqual(self.catalog.slot_count, 201)
-
-    def test_resolves_slot_by_user_index(self) -> None:
-        selection = self.catalog.resolve("1")
-        self.assertEqual(selection.slot_number, 1)
-        self.assertEqual(selection.key, "0")
-
-    def test_rejects_non_numeric_lookup(self) -> None:
-        with self.assertRaisesRegex(ValueError, "Preset number must be numeric"):
-            self.catalog.resolve("GRANDI AFFARI")
-
-    def test_preserves_variable_payload_length(self) -> None:
-        selection = self.catalog.resolve("201")
-        self.assertEqual(selection.slot_number, 201)
-        self.assertEqual(len(selection.payload), 10)
+@pytest.fixture
+def catalog() -> PresetCatalog:
+    return PresetCatalog.load()
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_loads_numeric_slots(catalog: PresetCatalog) -> None:
+    assert catalog.slot_count == 201
+
+
+def test_resolves_slot_by_user_index(catalog: PresetCatalog) -> None:
+    selection = catalog.resolve("1")
+    assert selection.slot_number == 1
+    assert selection.key == "0"
+
+
+def test_rejects_non_numeric_lookup(catalog: PresetCatalog) -> None:
+    with pytest.raises(ValueError, match="Preset number must be numeric"):
+        catalog.resolve("GRANDI AFFARI")
+
+
+def test_preserves_variable_payload_length(catalog: PresetCatalog) -> None:
+    selection = catalog.resolve("201")
+    assert selection.slot_number == 201
+    assert len(selection.payload) == 10

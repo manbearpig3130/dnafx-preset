@@ -1,6 +1,7 @@
-import unittest
 from types import ModuleType
 from unittest.mock import patch
+
+import pytest
 
 from dnafx_preset.transport import USBTransport
 
@@ -67,115 +68,116 @@ class FakeVisibleDevice:
         self.idProduct = product_id
 
 
-class USBTransportTests(unittest.TestCase):
-    def test_send_payload_writes_twice(self) -> None:
-        device = FakeUSBDevice()
-        transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02, device=device)
+def test_send_payload_writes_twice() -> None:
+    device = FakeUSBDevice()
+    transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02, device=device)
 
-        transport.send_payload(b"\x08\xaa\x55")
+    transport.send_payload(b"\x08\xaa\x55")
 
-        self.assertEqual(device.writes, [(0x02, b"\x08\xaa\x55"), (0x02, b"\x08\xaa\x55")])
+    assert device.writes == [(0x02, b"\x08\xaa\x55"), (0x02, b"\x08\xaa\x55")]
 
-    def test_no_backend_error_has_actionable_message(self) -> None:
-        transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02)
 
-        class FakeNoBackendError(Exception):
+def test_no_backend_error_has_actionable_message() -> None:
+    transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02)
+
+    class FakeNoBackendError(Exception):
+        pass
+
+    class FakeUsbCore:
+        NoBackendError = FakeNoBackendError
+
+        @staticmethod
+        def find(**_kwargs):
+            raise FakeNoBackendError("No backend available")
+
+    fake_usb = ModuleType("usb")
+    fake_usb.core = FakeUsbCore
+
+    with patch.dict("sys.modules", {"usb": fake_usb, "usb.core": FakeUsbCore}):
+        with pytest.raises(Exception, match="Install libusb"):
+            transport.connect()
+
+
+def test_connect_does_not_reset_device() -> None:
+    transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02)
+    device = FakeConfigurableDevice()
+
+    class FakeUsbCore:
+        class NoBackendError(Exception):
             pass
 
-        class FakeUsbCore:
-            NoBackendError = FakeNoBackendError
+        @staticmethod
+        def find(**_kwargs):
+            return device
 
-            @staticmethod
-            def find(**_kwargs):
-                raise FakeNoBackendError("No backend available")
+    fake_usb = ModuleType("usb")
+    fake_usb.core = FakeUsbCore
 
-        fake_usb = ModuleType("usb")
-        fake_usb.core = FakeUsbCore
+    with patch.dict("sys.modules", {"usb": fake_usb, "usb.core": FakeUsbCore}):
+        connected_device = transport.connect()
 
-        with patch.dict("sys.modules", {"usb": fake_usb, "usb.core": FakeUsbCore}):
-            with self.assertRaisesRegex(Exception, "Install libusb"):
-                transport.connect()
+    assert connected_device is device
+    assert device.reset_called is False
+    assert device.configuration_set is True
 
-    def test_connect_does_not_reset_device(self) -> None:
-        transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02)
-        device = FakeConfigurableDevice()
 
-        class FakeUsbCore:
-            class NoBackendError(Exception):
-                pass
+def test_access_denied_error_has_actionable_message() -> None:
+    transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02, device=FakeAccessDeniedDevice())
 
-            @staticmethod
-            def find(**_kwargs):
-                return device
-
-        fake_usb = ModuleType("usb")
-        fake_usb.core = FakeUsbCore
-
-        with patch.dict("sys.modules", {"usb": fake_usb, "usb.core": FakeUsbCore}):
-            connected_device = transport.connect()
-
-        self.assertIs(connected_device, device)
-        self.assertFalse(device.reset_called)
-        self.assertTrue(device.configuration_set)
-
-    def test_access_denied_error_has_actionable_message(self) -> None:
-        transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02, device=FakeAccessDeniedDevice())
-
-        with self.assertRaisesRegex(Exception, "sudo dnafx-preset"):
-            transport.send_payload(b"\x08\xaa\x55")
-
-    def test_pipe_error_retries_after_clearing_halt(self) -> None:
-        device = FakePipeRecoveryDevice()
-        transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02, device=device)
-
+    with pytest.raises(Exception, match="sudo dnafx-preset"):
         transport.send_payload(b"\x08\xaa\x55")
 
-        self.assertEqual(device.clear_halt_calls, [0x02])
-        self.assertEqual(device.writes, [(0x02, b"\x08\xaa\x55"), (0x02, b"\x08\xaa\x55")])
 
-    def test_not_found_error_lists_visible_usb_devices(self) -> None:
-        transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02)
+def test_pipe_error_retries_after_clearing_halt() -> None:
+    device = FakePipeRecoveryDevice()
+    transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02, device=device)
 
-        class FakeUsbCore:
-            class NoBackendError(Exception):
-                pass
+    transport.send_payload(b"\x08\xaa\x55")
 
-            @staticmethod
-            def find(**kwargs):
-                if kwargs.get("find_all"):
-                    return [FakeVisibleDevice(0x1234, 0x5678), FakeVisibleDevice(0x0483, 0x9999)]
-                return None
-
-        fake_usb = ModuleType("usb")
-        fake_usb.core = FakeUsbCore
-
-        with patch.dict("sys.modules", {"usb": fake_usb, "usb.core": FakeUsbCore}):
-            with self.assertRaisesRegex(Exception, "1234:5678, 0483:9999"):
-                transport.connect()
-
-    def test_not_found_error_includes_devices_after_first_eight(self) -> None:
-        transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02)
-
-        late_device = FakeVisibleDevice(0x0483, 0x5703)
-        visible_devices = [FakeVisibleDevice(0x1000 + index, 0x2000 + index) for index in range(8)] + [late_device]
-
-        class FakeUsbCore:
-            class NoBackendError(Exception):
-                pass
-
-            @staticmethod
-            def find(**kwargs):
-                if kwargs.get("find_all"):
-                    return visible_devices
-                return None
-
-        fake_usb = ModuleType("usb")
-        fake_usb.core = FakeUsbCore
-
-        with patch.dict("sys.modules", {"usb": fake_usb, "usb.core": FakeUsbCore}):
-            with self.assertRaisesRegex(Exception, "0483:5703"):
-                transport.connect()
+    assert device.clear_halt_calls == [0x02]
+    assert device.writes == [(0x02, b"\x08\xaa\x55"), (0x02, b"\x08\xaa\x55")]
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_not_found_error_lists_visible_usb_devices() -> None:
+    transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02)
+
+    class FakeUsbCore:
+        class NoBackendError(Exception):
+            pass
+
+        @staticmethod
+        def find(**kwargs):
+            if kwargs.get("find_all"):
+                return [FakeVisibleDevice(0x1234, 0x5678), FakeVisibleDevice(0x0483, 0x9999)]
+            return None
+
+    fake_usb = ModuleType("usb")
+    fake_usb.core = FakeUsbCore
+
+    with patch.dict("sys.modules", {"usb": fake_usb, "usb.core": FakeUsbCore}):
+        with pytest.raises(Exception, match="1234:5678, 0483:9999"):
+            transport.connect()
+
+
+def test_not_found_error_includes_devices_after_first_eight() -> None:
+    transport = USBTransport(vendor_id=0x0483, product_id=0x5703, out_endpoint=0x02)
+
+    late_device = FakeVisibleDevice(0x0483, 0x5703)
+    visible_devices = [FakeVisibleDevice(0x1000 + index, 0x2000 + index) for index in range(8)] + [late_device]
+
+    class FakeUsbCore:
+        class NoBackendError(Exception):
+            pass
+
+        @staticmethod
+        def find(**kwargs):
+            if kwargs.get("find_all"):
+                return visible_devices
+            return None
+
+    fake_usb = ModuleType("usb")
+    fake_usb.core = FakeUsbCore
+
+    with patch.dict("sys.modules", {"usb": fake_usb, "usb.core": FakeUsbCore}):
+        with pytest.raises(Exception, match="0483:5703"):
+            transport.connect()
