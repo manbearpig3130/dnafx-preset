@@ -34,6 +34,12 @@ The USB settings can be provided either through CLI flags or environment variabl
 - `DNAFX_OUT_ENDPOINT`
 - `DNAFX_PRESETS_FILE` (optional override)
 
+If you do not provide the USB values, `dnafx-preset` uses built-in defaults for the DNAfx GiT device:
+
+- `DNAFX_VENDOR_ID=0483`
+- `DNAFX_PRODUCT_ID=5703`
+- `DNAFX_OUT_ENDPOINT=02`
+
 By default, the package uses an embedded numeric preset table. `DNAFX_PRESETS_FILE` is only needed if you want to override that default mapping with a custom JSON file.
 
 The USB values are parsed as hexadecimal, so the current device values can be passed as `0483`, `5703`, or `0x02`.
@@ -72,6 +78,10 @@ With a non-default base channel, the same rule still applies: base channel for t
 ## Examples
 
 ```bash
+dnafx-preset set 1
+sudo dnafx-preset set 1
+sudo dnafx-preset listen
+sudo dnafx-preset listen --midi-channel 0 --midi-port-name "DNAfx Preset In"
 dnafx-preset --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1
 sudo dnafx-preset --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1
 sudo dnafx-preset --vendor-id 0483 --product-id 5703 --out-endpoint 02 listen

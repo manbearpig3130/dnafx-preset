@@ -5,16 +5,34 @@ from typing import Callable, Sequence, TextIO
 import sys
 
 from .client import DnafxPresetClient
-from .config import DeviceConfig, MidiListenerConfig
+from .config import DEFAULT_OUT_ENDPOINT, DEFAULT_PRODUCT_ID, DEFAULT_VENDOR_ID, DeviceConfig, MidiListenerConfig
 from .listener import MidiProgramChangeListener
 from .presets import PresetSelection
 
 
 def build_parser() -> ArgumentParser:
     parser = ArgumentParser(prog="dnafx-preset", description="DNAfx preset switcher")
-    parser.add_argument("--vendor-id", help="USB vendor ID in hexadecimal, for example 0483")
-    parser.add_argument("--product-id", help="USB product ID in hexadecimal, for example 5703")
-    parser.add_argument("--out-endpoint", help="USB output endpoint in hexadecimal, for example 02")
+    parser.add_argument(
+        "--vendor-id",
+        help=(
+            "USB vendor ID in hexadecimal, for example 0483 "
+            f"(default: {DEFAULT_VENDOR_ID:04x} for DNAfx GiT)"
+        ),
+    )
+    parser.add_argument(
+        "--product-id",
+        help=(
+            "USB product ID in hexadecimal, for example 5703 "
+            f"(default: {DEFAULT_PRODUCT_ID:04x} for DNAfx GiT)"
+        ),
+    )
+    parser.add_argument(
+        "--out-endpoint",
+        help=(
+            "USB output endpoint in hexadecimal, for example 02 "
+            f"(default: {DEFAULT_OUT_ENDPOINT:02x} for DNAfx GiT)"
+        ),
+    )
     parser.add_argument("--presets-file", help="Optional path to a custom preset JSON override")
 
     subparsers = parser.add_subparsers(dest="command", required=True)

@@ -12,6 +12,10 @@ ENV_PRESETS_FILE = "DNAFX_PRESETS_FILE"
 ENV_MIDI_CHANNEL = "DNAFX_MIDI_CHANNEL"
 ENV_MIDI_PORT_NAME = "DNAFX_MIDI_PORT_NAME"
 
+DEFAULT_VENDOR_ID = 0x0483
+DEFAULT_PRODUCT_ID = 0x5703
+DEFAULT_OUT_ENDPOINT = 0x02
+
 
 def parse_hex_int(value: str | int | None, *, field_name: str) -> int:
     if isinstance(value, int):
@@ -70,6 +74,11 @@ class DeviceConfig:
         resolved_vendor = vendor_id if vendor_id is not None else env_vendor
         resolved_product = product_id if product_id is not None else env_product
         resolved_endpoint = out_endpoint if out_endpoint is not None else env_endpoint
+
+        if require_usb:
+            resolved_vendor = DEFAULT_VENDOR_ID if resolved_vendor is None else resolved_vendor
+            resolved_product = DEFAULT_PRODUCT_ID if resolved_product is None else resolved_product
+            resolved_endpoint = DEFAULT_OUT_ENDPOINT if resolved_endpoint is None else resolved_endpoint
 
         if require_usb:
             vendor_value = parse_hex_int(resolved_vendor, field_name=ENV_VENDOR_ID)
