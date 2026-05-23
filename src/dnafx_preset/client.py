@@ -13,9 +13,6 @@ class DnafxPresetClient:
         catalog: PresetCatalog | None = None,
         transport: TransportProtocol | None = None,
     ):
-        if config.vendor_id is None or config.product_id is None or config.out_endpoint is None:
-            raise ValueError("USB configuration is required for preset switching")
-
         self.config = config
         self.catalog = catalog or PresetCatalog.load(config.presets_file)
         if transport is not None:

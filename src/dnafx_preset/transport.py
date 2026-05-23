@@ -65,6 +65,7 @@ class USBTransport:
                 if callable(detach_kernel_driver):
                     detach_kernel_driver(0)
         except Exception:
+            # Not all backends expose kernel driver control; failure here is safe to ignore
             pass
 
         try:

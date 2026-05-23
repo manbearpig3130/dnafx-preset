@@ -51,9 +51,9 @@ def parse_int(value: str | int | None, *, field_name: str) -> int:
 
 @dataclass(frozen=True)
 class DeviceConfig:
-    vendor_id: int | None
-    product_id: int | None
-    out_endpoint: int | None
+    vendor_id: int
+    product_id: int
+    out_endpoint: int
     presets_file: Path | None
 
     @classmethod
@@ -64,8 +64,7 @@ class DeviceConfig:
         product_id: str | int | None = None,
         out_endpoint: str | int | None = None,
         presets_file: str | os.PathLike[str] | None = None,
-        require_usb: bool = True,
-    ) -> "DeviceConfig":
+    ) -> DeviceConfig:
         env_vendor = os.environ.get(ENV_VENDOR_ID)
         env_product = os.environ.get(ENV_PRODUCT_ID)
         env_endpoint = os.environ.get(ENV_OUT_ENDPOINT)
@@ -75,19 +74,13 @@ class DeviceConfig:
         resolved_product = product_id if product_id is not None else env_product
         resolved_endpoint = out_endpoint if out_endpoint is not None else env_endpoint
 
-        if require_usb:
-            resolved_vendor = DEFAULT_VENDOR_ID if resolved_vendor is None else resolved_vendor
-            resolved_product = DEFAULT_PRODUCT_ID if resolved_product is None else resolved_product
-            resolved_endpoint = DEFAULT_OUT_ENDPOINT if resolved_endpoint is None else resolved_endpoint
+        resolved_vendor = DEFAULT_VENDOR_ID if resolved_vendor is None else resolved_vendor
+        resolved_product = DEFAULT_PRODUCT_ID if resolved_product is None else resolved_product
+        resolved_endpoint = DEFAULT_OUT_ENDPOINT if resolved_endpoint is None else resolved_endpoint
 
-        if require_usb:
-            vendor_value = parse_hex_int(resolved_vendor, field_name=ENV_VENDOR_ID)
-            product_value = parse_hex_int(resolved_product, field_name=ENV_PRODUCT_ID)
-            endpoint_value = parse_hex_int(resolved_endpoint, field_name=ENV_OUT_ENDPOINT)
-        else:
-            vendor_value = parse_hex_int(resolved_vendor, field_name=ENV_VENDOR_ID) if resolved_vendor else None
-            product_value = parse_hex_int(resolved_product, field_name=ENV_PRODUCT_ID) if resolved_product else None
-            endpoint_value = parse_hex_int(resolved_endpoint, field_name=ENV_OUT_ENDPOINT) if resolved_endpoint else None
+        vendor_value = parse_hex_int(resolved_vendor, field_name=ENV_VENDOR_ID)
+        product_value = parse_hex_int(resolved_product, field_name=ENV_PRODUCT_ID)
+        endpoint_value = parse_hex_int(resolved_endpoint, field_name=ENV_OUT_ENDPOINT)
 
         resolved_presets_source = presets_file if presets_file is not None else env_presets
         resolved_presets = Path(resolved_presets_source).expanduser() if resolved_presets_source is not None else None
@@ -111,7 +104,7 @@ class MidiListenerConfig:
         *,
         channel: str | int | None = None,
         port_name: str | None = None,
-    ) -> "MidiListenerConfig":
+    ) -> MidiListenerConfig:
         env_channel = os.environ.get(ENV_MIDI_CHANNEL)
         env_port_name = os.environ.get(ENV_MIDI_PORT_NAME)
 

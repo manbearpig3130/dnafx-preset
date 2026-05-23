@@ -55,29 +55,24 @@ def build_parser() -> ArgumentParser:
     return parser
 
 
-def build_config(args: Namespace, *, require_usb: bool) -> DeviceConfig:
+def build_config(args: Namespace) -> DeviceConfig:
     return DeviceConfig.from_sources(
         vendor_id=args.vendor_id,
         product_id=args.product_id,
         out_endpoint=args.out_endpoint,
         presets_file=args.presets_file,
-        require_usb=require_usb,
     )
 
 
 def build_client(args: Namespace) -> DnafxPresetClient:
-    return DnafxPresetClient(build_config(args, require_usb=True))
+    return DnafxPresetClient(build_config(args))
 
 
 def build_listener_config(args: Namespace) -> MidiListenerConfig:
     return MidiListenerConfig.from_sources(channel=args.midi_channel, port_name=args.midi_port_name)
 
 
-def build_listener(args: Namespace) -> MidiProgramChangeListener:
-    return build_listener_with_error_handler(args)
-
-
-def build_listener_with_error_handler(
+def build_listener(
     args: Namespace,
     error_handler: Callable[[Exception], None] | None = None,
 ) -> MidiProgramChangeListener:
@@ -91,8 +86,6 @@ def build_listener_with_error_handler(
 
 
 def format_selection(selection: PresetSelection) -> str:
-    if selection.slot_number is None:
-        raise ValueError("Resolved preset is missing a numeric slot number")
     return f"slot {selection.slot_number}"
 
 
@@ -107,7 +100,7 @@ def handle_listen(args: Namespace, stdout: TextIO, stderr: TextIO) -> int:
     def report_error(exc: Exception) -> None:
         stderr.write(f"Error: {exc}\n")
 
-    listener = build_listener_with_error_handler(args, report_error)
+    listener = build_listener(args, report_error)
     channel_text = f"raw channel {listener.channel}"
     if listener.channel < 15:
         channel_text = f"raw channels {listener.channel} and {listener.channel + 1}"
@@ -139,7 +132,6 @@ def main(
         return 1
 
     parser.error(f"Unsupported command: {args.command}")
-    return 2
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest>=8.0",
+    "pyright>=1.1",
 ]
 
 [project.scripts]
@@ -27,5 +28,14 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+dnafx_preset = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.pyright]
+pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"

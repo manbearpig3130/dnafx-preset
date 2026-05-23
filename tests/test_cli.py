@@ -16,12 +16,6 @@ class FakeClient:
     def switch(self, _target: str) -> PresetSelection:
         return self._selection
 
-    def next(self) -> PresetSelection:
-        return self._selection
-
-    def previous(self) -> PresetSelection:
-        return self._selection
-
 
 class FakeListener:
     def __init__(self, *, channel: int = 0, port_name: str = "DNAfx Preset In") -> None:
@@ -50,7 +44,7 @@ def test_listen_uses_listener() -> None:
     stderr = StringIO()
     listener = FakeListener(channel=0, port_name="DNAfx Preset In")
 
-    with patch("dnafx_preset.cli.build_listener_with_error_handler", return_value=listener):
+    with patch("dnafx_preset.cli.build_listener", return_value=listener):
         exit_code = main(["listen"], stdout=stdout, stderr=stderr)
 
     assert exit_code == 0

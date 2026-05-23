@@ -11,6 +11,9 @@ class MidiInputProtocol(Protocol):
     def get_message(self) -> tuple[list[int], float] | None:
         ...
 
+    def close_port(self) -> None:
+        ...
+
 
 class PresetCatalogProtocol(Protocol):
     @property
@@ -30,6 +33,7 @@ class PresetSwitchingClientProtocol(Protocol):
 class MidiListenerError(RuntimeError):
     pass
 
+
 class MidiProgramChangeListener:
     def __init__(
         self,
@@ -42,9 +46,6 @@ class MidiProgramChangeListener:
         error_handler: Callable[[Exception], None] | None = None,
         idle_sleep: float = 0.01,
     ):
-        if channel < 0 or channel > 15:
-            raise ValueError("MIDI channel must be between 0 and 15")
-
         resolved_slot_count = slot_count if slot_count is not None else self._infer_slot_count(client)
         if resolved_slot_count < 1:
             raise ValueError("Slot count must be at least 1")
@@ -144,11 +145,4 @@ class MidiProgramChangeListener:
 
     @staticmethod
     def _close_midi_in(midi_in: MidiInputProtocol) -> None:
-        close_port = getattr(midi_in, "close_port", None)
-        if callable(close_port):
-            close_port()
-            return
-
-        close = getattr(midi_in, "close", None)
-        if callable(close):
-            close()
+        midi_in.close_port()
