@@ -1,5 +1,5 @@
 ---
-mode: ask
+agent: ask
 ---
 
 Add a new CLI command to `dnafx-preset` following the existing `set` command pattern.
