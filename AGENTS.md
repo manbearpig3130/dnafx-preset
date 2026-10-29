@@ -25,7 +25,7 @@
 - `src/dnafx_preset/transport.py`: USB transport wrapper.
 - `src/dnafx_preset/listener.py`: virtual MIDI input listener.
 - `src/dnafx_preset/presets.py`: preset catalog and JSON override loading.
-- `src/dnafx_preset/embedded_presets.py`: built-in default preset payloads.
+- `src/dnafx_preset/protocol.py`: DNAfx message framing, CRC and the preset change message.
 
 ## Test Patterns
 
@@ -61,7 +61,8 @@ See `.github/prompts/add-transport.prompt.md` for the full recipe.
 
 - On macOS, install `libusb` separately with `brew install libusb`; `pyusb` alone is not enough.
 - Real USB writes may require `sudo`.
+- The DNAfx has 200 slots. Preset change messages are computed in `protocol.py`; don't add byte tables.
 - Use `pip install -e ".[test]"` before running `pytest` in a fresh environment.
 - `DNAFX_VENDOR_ID`, `DNAFX_PRODUCT_ID`, and `DNAFX_OUT_ENDPOINT` are parsed as hexadecimal values, with or without an `0x` prefix.
-- `DNAFX_PRESETS_FILE` is optional; the embedded preset table is the default.
+- `DNAFX_PRESETS_FILE` is optional; the computed preset change messages are the default.
 - `DeviceConfig.from_sources()` always applies DNAfx GiT defaults when USB IDs are omitted.

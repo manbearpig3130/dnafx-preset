@@ -36,7 +36,7 @@ If you do not provide the USB values, `dnafx-preset` uses built-in defaults for 
 - `DNAFX_PRODUCT_ID=5703`
 - `DNAFX_OUT_ENDPOINT=02`
 
-By default, the package uses an embedded numeric preset table. `DNAFX_PRESETS_FILE` is only needed if you want to override that default mapping with a custom JSON file.
+By default, the package builds the preset change message for each of the DNAfx's 200 slots (P001 to P200): one 64-byte packet with command `0x96`, the slot number and a CRC-16/GSM checksum, as documented by [lminiero/dnafx-editor](https://github.com/lminiero/dnafx-editor). `DNAFX_PRESETS_FILE` is only needed if you want to override that default mapping with a custom JSON file.
 
 The USB values are parsed as hexadecimal, so the current device values can be passed as `0483`, `5703`, or `0x02`.
 
@@ -61,7 +61,7 @@ slot = bank * 128 + program + 1
 Where:
 
 - Program Change on the configured base channel selects bank `0`, covering DNAfx slots `1..128`
-- Program Change on the next raw MIDI channel selects bank `1`, covering DNAfx slots `129..201`
+- Program Change on the next raw MIDI channel selects bank `1`, covering DNAfx slots `129..200`
 
 That means:
 

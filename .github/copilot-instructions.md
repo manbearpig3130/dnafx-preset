@@ -11,9 +11,9 @@ cli.py          argparse entrypoint — builds config, instantiates dependencies
 config.py       DeviceConfig and MidiListenerConfig — parse CLI args and env vars into frozen dataclasses
 client.py       DnafxPresetClient — orchestrates catalog lookup + transport write
 presets.py      PresetCatalog — maps slot numbers to byte payloads; PresetSelection is the result type
+protocol.py     DNAfx message framing and CRC-16/GSM; preset_change_message() for slots 1–200
 transport.py    USBTransport — wraps pyusb; lazy-loads the library; handles pipe-error recovery
 listener.py     MidiProgramChangeListener — polls rtmidi for Program Change; maps channels/banks to slots
-embedded_presets.py  DEFAULT_PRESET_PAYLOADS tuple — 201 built-in payloads, no file I/O needed
 ```
 
 Each hardware dependency (`usb`, `rtmidi`) is hidden behind a `Protocol`:
@@ -36,13 +36,13 @@ Each hardware dependency (`usb`, `rtmidi`) is hidden behind a `Protocol`:
 
 ## MIDI Bank Mapping
 
-Two consecutive MIDI channels form a bank pair covering all 201 slots:
+Two consecutive MIDI channels form a bank pair covering all 200 slots:
 
 ```
 slot = bank * 128 + program + 1
 
 base channel  → bank 0 → slots 1–128   (programs 0–127)
-base+1 channel → bank 1 → slots 129–201 (programs 0–72)
+base+1 channel → bank 1 → slots 129–200 (programs 0–71)
 ```
 
 Programs that would exceed `slot_count` are silently ignored.

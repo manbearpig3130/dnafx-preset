@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import json
 
-from .embedded_presets import DEFAULT_PRESET_PAYLOADS
+from .protocol import SLOT_COUNT, preset_change_message
 
 
 @dataclass(frozen=True)
@@ -23,7 +23,7 @@ class PresetCatalog:
     @classmethod
     def load(cls, presets_file: Path | None = None) -> PresetCatalog:
         if presets_file is None:
-            return cls._from_embedded(DEFAULT_PRESET_PAYLOADS)
+            return cls._from_protocol()
 
         raw_text = Path(presets_file).read_text(encoding="utf-8")
         raw_presets = json.loads(raw_text)
@@ -32,14 +32,14 @@ class PresetCatalog:
         return cls._from_dict(raw_presets)
 
     @classmethod
-    def _from_embedded(cls, payloads: tuple[tuple[int, ...], ...]) -> PresetCatalog:
+    def _from_protocol(cls) -> PresetCatalog:
         slots = [
             PresetSelection(
                 key=str(position - 1),
                 slot_number=position,
-                payload=cls._coerce_payload(list(payload), str(position - 1)),
+                payload=preset_change_message(position),
             )
-            for position, payload in enumerate(payloads, start=1)
+            for position in range(1, SLOT_COUNT + 1)
         ]
         return cls(slots)
 

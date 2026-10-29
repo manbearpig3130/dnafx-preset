@@ -7,7 +7,7 @@ class FakeCatalog:
 
 
 class FakeClient:
-    def __init__(self, slot_count: int = 201) -> None:
+    def __init__(self, slot_count: int = 200) -> None:
         self.catalog = FakeCatalog(slot_count)
         self.switch_calls: list[int] = []
 
@@ -83,7 +83,7 @@ def test_configured_base_channel_uses_next_channel_for_upper_bank() -> None:
 
 
 def test_out_of_range_bank_program_is_ignored() -> None:
-    client = FakeClient(slot_count=201)
+    client = FakeClient(slot_count=200)
     listener = MidiProgramChangeListener(client, channel=0)
 
     slot_number = listener.process_message([0xC1, 127])

@@ -44,7 +44,7 @@ def build_parser() -> ArgumentParser:
     listen_parser.add_argument(
         "--midi-channel",
         default=None,
-        help="Raw base MIDI channel number, from 0 to 15; this channel selects slots 1-128 and the next channel selects slots 129-201 (default: 0)",
+        help="Raw base MIDI channel number, from 0 to 15; this channel selects slots 1-128 and the next channel selects slots 129-200 (default: 0)",
     )
     listen_parser.add_argument(
         "--midi-port-name",
