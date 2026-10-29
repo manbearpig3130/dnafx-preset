@@ -9,12 +9,15 @@ ENV_VENDOR_ID = "DNAFX_VENDOR_ID"
 ENV_PRODUCT_ID = "DNAFX_PRODUCT_ID"
 ENV_OUT_ENDPOINT = "DNAFX_OUT_ENDPOINT"
 ENV_PRESETS_FILE = "DNAFX_PRESETS_FILE"
+ENV_TRANSPORT = "DNAFX_TRANSPORT"
 ENV_MIDI_CHANNEL = "DNAFX_MIDI_CHANNEL"
 ENV_MIDI_PORT_NAME = "DNAFX_MIDI_PORT_NAME"
 
 DEFAULT_VENDOR_ID = 0x0483
 DEFAULT_PRODUCT_ID = 0x5703
 DEFAULT_OUT_ENDPOINT = 0x02
+TRANSPORTS = ("hid", "usb")
+DEFAULT_TRANSPORT = "hid"
 
 
 def parse_hex_int(value: str | int | None, *, field_name: str) -> int:
@@ -55,6 +58,7 @@ class DeviceConfig:
     product_id: int
     out_endpoint: int
     presets_file: Path | None
+    transport: str = DEFAULT_TRANSPORT
 
     @classmethod
     def from_sources(
@@ -64,11 +68,13 @@ class DeviceConfig:
         product_id: str | int | None = None,
         out_endpoint: str | int | None = None,
         presets_file: str | os.PathLike[str] | None = None,
+        transport: str | None = None,
     ) -> DeviceConfig:
         env_vendor = os.environ.get(ENV_VENDOR_ID)
         env_product = os.environ.get(ENV_PRODUCT_ID)
         env_endpoint = os.environ.get(ENV_OUT_ENDPOINT)
         env_presets = os.environ.get(ENV_PRESETS_FILE)
+        env_transport = os.environ.get(ENV_TRANSPORT)
 
         resolved_vendor = vendor_id if vendor_id is not None else env_vendor
         resolved_product = product_id if product_id is not None else env_product
@@ -85,11 +91,17 @@ class DeviceConfig:
         resolved_presets_source = presets_file if presets_file is not None else env_presets
         resolved_presets = Path(resolved_presets_source).expanduser() if resolved_presets_source is not None else None
 
+        resolved_transport = transport if transport is not None else env_transport
+        transport_value = (resolved_transport or DEFAULT_TRANSPORT).strip().lower()
+        if transport_value not in TRANSPORTS:
+            raise ValueError(f"Transport must be one of {', '.join(TRANSPORTS)}: {resolved_transport}")
+
         return cls(
             vendor_id=vendor_value,
             product_id=product_value,
             out_endpoint=endpoint_value,
             presets_file=resolved_presets,
+            transport=transport_value,
         )
 
 

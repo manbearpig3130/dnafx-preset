@@ -1,2 +1,3 @@
-# Python dependency for the standalone DNAfx preset CLI/library.
+# Python dependencies for the standalone DNAfx preset CLI/library.
+hidapi>=0.14
 pyusb>=1.3.1

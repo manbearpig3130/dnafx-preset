@@ -5,7 +5,15 @@ from typing import Callable, Sequence, TextIO
 import sys
 
 from .client import DnafxPresetClient
-from .config import DEFAULT_OUT_ENDPOINT, DEFAULT_PRODUCT_ID, DEFAULT_VENDOR_ID, DeviceConfig, MidiListenerConfig
+from .config import (
+    DEFAULT_OUT_ENDPOINT,
+    DEFAULT_PRODUCT_ID,
+    DEFAULT_TRANSPORT,
+    DEFAULT_VENDOR_ID,
+    TRANSPORTS,
+    DeviceConfig,
+    MidiListenerConfig,
+)
 from .listener import MidiProgramChangeListener
 from .presets import PresetSelection
 
@@ -30,7 +38,16 @@ def build_parser() -> ArgumentParser:
         "--out-endpoint",
         help=(
             "USB output endpoint in hexadecimal, for example 02 "
-            f"(default: {DEFAULT_OUT_ENDPOINT:02x} for DNAfx GiT)"
+            f"(default: {DEFAULT_OUT_ENDPOINT:02x} for DNAfx GiT); only used by the usb transport"
+        ),
+    )
+    parser.add_argument(
+        "--transport",
+        choices=TRANSPORTS,
+        default=None,
+        help=(
+            "How to talk to the DNAfx: hid uses the operating system's HID driver and needs no sudo; "
+            f"usb uses pyusb and libusb (default: {DEFAULT_TRANSPORT})"
         ),
     )
     parser.add_argument("--presets-file", help="Optional path to a custom preset JSON override")
@@ -61,6 +78,7 @@ def build_config(args: Namespace) -> DeviceConfig:
         product_id=args.product_id,
         out_endpoint=args.out_endpoint,
         presets_file=args.presets_file,
+        transport=args.transport,
     )
 
 

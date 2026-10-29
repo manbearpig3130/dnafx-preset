@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .config import DeviceConfig
+from .hid_transport import HIDTransport
 from .presets import PresetCatalog, PresetSelection
 from .transport import TransportProtocol, USBTransport
 
@@ -17,6 +18,8 @@ class DnafxPresetClient:
         self.catalog = catalog or PresetCatalog.load(config.presets_file)
         if transport is not None:
             self.transport = transport
+        elif config.transport == "hid":
+            self.transport = HIDTransport(vendor_id=config.vendor_id, product_id=config.product_id)
         else:
             self.transport = USBTransport(
                 vendor_id=config.vendor_id,

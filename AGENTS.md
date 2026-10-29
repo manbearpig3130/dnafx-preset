@@ -22,7 +22,8 @@
 - `src/dnafx_preset/cli.py`: argparse entrypoint and command routing for `set` and `listen`.
 - `src/dnafx_preset/config.py`: CLI and environment parsing for USB and MIDI settings.
 - `src/dnafx_preset/client.py`: preset-switching orchestration.
-- `src/dnafx_preset/transport.py`: USB transport wrapper.
+- `src/dnafx_preset/hid_transport.py`: HID transport (default; hidapi, no sudo).
+- `src/dnafx_preset/transport.py`: USB transport wrapper (pyusb).
 - `src/dnafx_preset/listener.py`: virtual MIDI input listener.
 - `src/dnafx_preset/presets.py`: preset catalog and JSON override loading.
 - `src/dnafx_preset/protocol.py`: DNAfx message framing, CRC and the preset change message.
@@ -36,6 +37,7 @@
 | `cli.py` | patch `build_client` and/or `build_listener` | `patch("dnafx_preset.cli.build_client", return_value=fake)` |
 | `config.py` | env vars | `monkeypatch.setenv(...)` |
 | `transport.py` | inject device directly | `USBTransport(..., device=fake_device)` |
+| `hid_transport.py` | `FakeHIDDevice` | `HIDTransport(..., device_factory=lambda: fake_device)` |
 
 ## How to Extend
 
@@ -59,8 +61,7 @@ See `.github/prompts/add-transport.prompt.md` for the full recipe.
 
 ## Project Pitfalls
 
-- On macOS, install `libusb` separately with `brew install libusb`; `pyusb` alone is not enough.
-- Real USB writes may require `sudo`.
+- The `usb` transport needs `libusb` (`brew install libusb` on macOS; `pyusb` alone is not enough) and, on macOS, `sudo`. The default `hid` transport needs neither.
 - The DNAfx has 200 slots. Preset change messages are computed in `protocol.py`; don't add byte tables.
 - Use `pip install -e ".[test]"` before running `pytest` in a fresh environment.
 - `DNAFX_VENDOR_ID`, `DNAFX_PRODUCT_ID`, and `DNAFX_OUT_ENDPOINT` are parsed as hexadecimal values, with or without an `0x` prefix.

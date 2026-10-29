@@ -12,6 +12,7 @@ config.py       DeviceConfig and MidiListenerConfig — parse CLI args and env v
 client.py       DnafxPresetClient — orchestrates catalog lookup + transport write
 presets.py      PresetCatalog — maps slot numbers to byte payloads; PresetSelection is the result type
 protocol.py     DNAfx message framing and CRC-16/GSM; preset_change_message() for slots 1–200
+hid_transport.py  HIDTransport — default; wraps hidapi; opens the device for each write; no sudo
 transport.py    USBTransport — wraps pyusb; lazy-loads the library; handles pipe-error recovery
 listener.py     MidiProgramChangeListener — polls rtmidi for Program Change; maps channels/banks to slots
 ```
@@ -20,7 +21,7 @@ Each hardware dependency (`usb`, `rtmidi`) is hidden behind a `Protocol`:
 
 | Protocol | Defined in | Implemented by |
 |---|---|---|
-| `TransportProtocol` | `transport.py` | `USBTransport` |
+| `TransportProtocol` | `transport.py` | `HIDTransport`, `USBTransport` |
 | `MidiInputProtocol` | `listener.py` | `rtmidi.MidiIn` (at runtime) |
 | `PresetSwitchingClientProtocol` | `listener.py` | `DnafxPresetClient` |
 | `PresetCatalogProtocol` | `listener.py` | `PresetCatalog` |
@@ -64,7 +65,6 @@ Programs that would exceed `slot_count` are silently ignored.
 
 ## Common Pitfalls
 
-- macOS: `brew install libusb` is required even though `pyusb` is in the dependencies.
-- Real USB writes require `sudo`.
+- The `usb` transport needs `brew install libusb` on macOS even though `pyusb` is in the dependencies, and `sudo`. The default `hid` transport needs neither.
 - `DeviceConfig.from_sources()` always applies DNAfx GiT defaults for missing USB IDs; explicit values override them.
 - `python-rtmidi` exposes `MidiIn` only on supported platforms; the listener raises `MidiListenerError` if it is absent.

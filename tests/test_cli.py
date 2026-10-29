@@ -52,3 +52,10 @@ def test_listen_uses_listener() -> None:
     assert "Listening on virtual MIDI input 'DNAfx Preset In'" in stdout.getvalue()
     assert "raw channels 0 and 1" in stdout.getvalue()
     assert stderr.getvalue() == ""
+
+
+def test_transport_option_rejects_unknown_values() -> None:
+    import pytest
+
+    with pytest.raises(SystemExit):
+        main(["--transport", "serial", "set", "1"], stdout=StringIO(), stderr=StringIO())

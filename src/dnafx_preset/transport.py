@@ -174,7 +174,7 @@ class USBTransport:
                 return (
                     "Access denied while trying to claim the DNAfx USB interface. "
                     "On macOS, rerun the command with sudo, for example: "
-                    "sudo dnafx-preset --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1"
+                    "sudo dnafx-preset --transport usb --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1"
                 )
             return (
                 "Access denied while trying to claim the DNAfx USB interface. "

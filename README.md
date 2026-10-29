@@ -15,11 +15,14 @@ When run in listener mode, it also exposes a virtual MIDI input port to macOS an
 pip install ./dnafx-preset
 ```
 
-On macOS, `pyusb` also needs a system `libusb` backend:
+Connect the DNAfx's USB-B port to the computer. The USB-C port only carries audio.
 
-```bash
-brew install libusb
-```
+## Transports
+
+- `hid` (default) talks to the DNAfx through the operating system's HID driver, using `hidapi`. It needs no `sudo` and no `libusb`. It opens the device only for the moment it sends a preset change, so the Harley Benton editor can stay open alongside it. Tested on macOS.
+- `usb` talks to the DNAfx with `pyusb`, which detaches the HID driver first. On macOS it needs `brew install libusb` and `sudo`.
+
+Choose one with `--transport` or `DNAFX_TRANSPORT`.
 
 ## Configuration
 
@@ -27,7 +30,8 @@ The USB settings can be provided either through CLI flags or environment variabl
 
 - `DNAFX_VENDOR_ID`
 - `DNAFX_PRODUCT_ID`
-- `DNAFX_OUT_ENDPOINT`
+- `DNAFX_OUT_ENDPOINT` (`usb` transport only)
+- `DNAFX_TRANSPORT` (`hid` or `usb`, default `hid`)
 - `DNAFX_PRESETS_FILE` (optional override)
 
 If you do not provide the USB values, `dnafx-preset` uses built-in defaults for the DNAfx GiT device:
@@ -40,9 +44,7 @@ By default, the package builds the preset change message for each of the DNAfx's
 
 The USB values are parsed as hexadecimal, so the current device values can be passed as `0483`, `5703`, or `0x02`.
 
-If you see `No USB backend available`, `libusb` is missing from the system even if the Python package installed correctly.
-
-If you see `Access denied` or the CLI tells you it could not claim the USB interface, rerun the preset command with `sudo`. The original server code also expected elevated privileges for USB writes.
+With the `usb` transport, `No USB backend available` means `libusb` is missing from the system even if the Python package installed correctly, and `Access denied` means the command needs `sudo`.
 
 ## MIDI Listener
 
@@ -75,13 +77,10 @@ With a non-default base channel, the same rule still applies: base channel for t
 
 ```bash
 dnafx-preset set 1
-sudo dnafx-preset set 1
-sudo dnafx-preset listen
-sudo dnafx-preset listen --midi-channel 0 --midi-port-name "DNAfx Preset In"
-dnafx-preset --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1
-sudo dnafx-preset --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1
-sudo dnafx-preset --vendor-id 0483 --product-id 5703 --out-endpoint 02 listen
-sudo dnafx-preset --vendor-id 0483 --product-id 5703 --out-endpoint 02 listen --midi-channel 0 --midi-port-name "DNAfx Preset In"
+dnafx-preset listen
+dnafx-preset listen --midi-channel 0 --midi-port-name "DNAfx Preset In"
+dnafx-preset --vendor-id 0483 --product-id 5703 set 1
+sudo dnafx-preset --transport usb --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1
 ```
 
 ## Development
