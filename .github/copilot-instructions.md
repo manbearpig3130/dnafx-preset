@@ -46,7 +46,7 @@ base channel  → bank 0 → slots 1–128   (programs 0–127)
 base+1 channel → bank 1 → slots 129–200 (programs 0–71)
 ```
 
-Programs that would exceed `slot_count` are silently ignored.
+Programs that would exceed `slot_count` are silently ignored. An optional program map (`--midi-program-map 0=49,3=187`) sends base-channel programs to any slot instead.
 
 ## Test Strategy
 

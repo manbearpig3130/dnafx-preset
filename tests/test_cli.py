@@ -84,3 +84,11 @@ def test_transport_option_rejects_unknown_values() -> None:
 
     with pytest.raises(SystemExit):
         main(["--transport", "serial", "set", "1"], stdout=StringIO(), stderr=StringIO())
+
+
+def test_listen_passes_program_map_to_the_listener_config() -> None:
+    from dnafx_preset.cli import build_listener_config, build_parser
+
+    args = build_parser().parse_args(["listen", "--midi-program-map", "0=49,1=50,2=51,3=187"])
+
+    assert build_listener_config(args).program_map == ((0, 49), (1, 50), (2, 51), (3, 187))

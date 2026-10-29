@@ -14,7 +14,7 @@
 - Use `pytest` as the test runner. Write new tests as plain pytest functions — not `unittest.TestCase`.
 - Avoid tests that require real USB or MIDI hardware. Follow the existing seams: patch the factories in `cli.py` and use protocol-compatible fakes.
 - Preserve the current design choices: frozen dataclasses for configuration/result types and protocol-based abstractions for transport and MIDI dependencies.
-- Treat preset slots as 1-based user-facing values. MIDI mapping stays `slot = bank * 128 + program + 1`.
+- Treat preset slots as 1-based user-facing values. MIDI mapping stays `slot = bank * 128 + program + 1`, except for base-channel programs listed in the optional program map (`--midi-program-map`).
 - Do not wrap type annotations in quotes — `from __future__ import annotations` is present in every source file.
 
 ## Architecture

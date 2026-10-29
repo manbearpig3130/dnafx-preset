@@ -222,3 +222,21 @@ def test_listen_reports_switches_but_not_ignored_messages() -> None:
     listener.listen()
 
     assert statuses == ["Switched to slot 5"]
+
+
+def test_program_map_overrides_the_base_channel_rule() -> None:
+    client = FakeClient()
+    listener = MidiProgramChangeListener(client, channel=0, program_map=((2, 51), (3, 187)))
+
+    assert listener.process_message([0xC0, 3]) == 187
+    assert listener.process_message([0xC0, 2]) == 51
+    assert listener.process_message([0xC0, 4]) == 5
+    assert listener.process_message([0xC1, 3]) == 132
+    assert client.switch_calls == [187, 51, 5, 132]
+
+
+def test_program_map_rejects_slots_the_device_does_not_have() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="slots are 1 to 200"):
+        MidiProgramChangeListener(FakeClient(slot_count=200), program_map=((0, 201),))

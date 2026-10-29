@@ -76,6 +76,14 @@ def build_parser() -> ArgumentParser:
             "for example 'Rocksmith Companion'; waits for it to appear and reconnects when it comes back"
         ),
     )
+    listen_parser.add_argument(
+        "--midi-program-map",
+        default=None,
+        help=(
+            "Comma-separated PROGRAM=SLOT pairs for Program Change on the base channel, "
+            "for example 0=49,1=50,2=51,3=187; other programs select slot program+1"
+        ),
+    )
 
     return parser
 
@@ -99,6 +107,7 @@ def build_listener_config(args: Namespace) -> MidiListenerConfig:
         channel=args.midi_channel,
         port_name=args.midi_port_name,
         source_name=args.midi_source,
+        program_map=args.midi_program_map,
     )
 
 
@@ -113,6 +122,7 @@ def build_listener(
         channel=listener_config.channel,
         port_name=listener_config.port_name,
         source_name=listener_config.source_name,
+        program_map=listener_config.program_map,
         error_handler=error_handler,
         status_handler=status_handler,
     )

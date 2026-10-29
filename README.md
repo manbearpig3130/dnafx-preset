@@ -75,6 +75,8 @@ That means:
 
 With a non-default base channel, the same rule still applies: base channel for the lower bank, next channel for the upper bank. Out-of-range bank and program combinations are ignored.
 
+`--midi-program-map` (or `DNAFX_MIDI_PROGRAM_MAP`) maps programs on the base channel to any slot instead, as comma-separated `PROGRAM=SLOT` pairs. Programs without an entry keep the rule above. For example, `0=49,3=187` makes program `0` select slot `49` and program `3` select slot `187`, which a single channel can't reach otherwise.
+
 ## Rocksmith with RS Companion
 
 [RS Companion](https://github.com/glebb/rs-mac-companion) sends a Program Change on its MIDI source `Rocksmith Companion` when Rocksmith's tone changes category (Clean, Crunch, Heavy, Lead):
@@ -83,7 +85,13 @@ With a non-default base channel, the same rule still applies: base channel for t
 dnafx-preset listen --midi-source "Rocksmith Companion"
 ```
 
-In RS Companion's settings, give each category the program number of the DNAfx slot you want minus one, on MIDI channel 1. For example, programs 50, 11, 12 and 13 select P051, P012, P013 and P014.
+With RS Companion's default program numbers (Clean 0, Crunch 1, Heavy 2, Lead 3, on MIDI channel 1), map each category to a DNAfx slot:
+
+```bash
+dnafx-preset listen --midi-source "Rocksmith Companion" --midi-program-map 0=49,1=50,2=51,3=187
+```
+
+This selects P049 for Clean, P050 for Crunch, P051 for Heavy and P187 for Lead.
 
 ## Examples
 
@@ -92,6 +100,7 @@ dnafx-preset set 1
 dnafx-preset listen
 dnafx-preset listen --midi-channel 0 --midi-port-name "DNAfx Preset In"
 dnafx-preset listen --midi-source "Rocksmith Companion"
+dnafx-preset listen --midi-source "Rocksmith Companion" --midi-program-map 0=49,1=50,2=51,3=187
 dnafx-preset --vendor-id 0483 --product-id 5703 set 1
 sudo dnafx-preset --transport usb --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1
 ```

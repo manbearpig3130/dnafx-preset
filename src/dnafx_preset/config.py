@@ -13,6 +13,7 @@ ENV_TRANSPORT = "DNAFX_TRANSPORT"
 ENV_MIDI_CHANNEL = "DNAFX_MIDI_CHANNEL"
 ENV_MIDI_PORT_NAME = "DNAFX_MIDI_PORT_NAME"
 ENV_MIDI_SOURCE = "DNAFX_MIDI_SOURCE"
+ENV_MIDI_PROGRAM_MAP = "DNAFX_MIDI_PROGRAM_MAP"
 
 DEFAULT_VENDOR_ID = 0x0483
 DEFAULT_PRODUCT_ID = 0x5703
@@ -51,6 +52,32 @@ def parse_int(value: str | int | None, *, field_name: str) -> int:
         return int(raw_value, 10)
     except ValueError as exc:
         raise ValueError(f"Invalid integer value for {field_name}: {value}") from exc
+
+
+def parse_program_map(value: str | None) -> tuple[tuple[int, int], ...]:
+    # "0=49, 1=50" -> ((0, 49), (1, 50)): MIDI program (0-127) to 1-based slot
+    if value is None:
+        return ()
+
+    pairs: list[tuple[int, int]] = []
+    for entry in value.split(","):
+        if not entry.strip():
+            continue
+        program_text, separator, slot_text = entry.partition("=")
+        if not separator:
+            raise ValueError(f"{ENV_MIDI_PROGRAM_MAP} entries must look like PROGRAM=SLOT: {entry.strip()}")
+
+        program = parse_int(program_text, field_name=ENV_MIDI_PROGRAM_MAP)
+        slot_number = parse_int(slot_text, field_name=ENV_MIDI_PROGRAM_MAP)
+        if program < 0 or program > 127:
+            raise ValueError(f"MIDI program must be between 0 and 127: {program}")
+        if slot_number < 1:
+            raise ValueError(f"Slot must be at least 1: {slot_number}")
+        if any(program == mapped for mapped, _slot in pairs):
+            raise ValueError(f"MIDI program {program} is mapped more than once")
+        pairs.append((program, slot_number))
+
+    return tuple(pairs)
 
 
 @dataclass(frozen=True)
@@ -111,6 +138,7 @@ class MidiListenerConfig:
     channel: int
     port_name: str
     source_name: str | None = None
+    program_map: tuple[tuple[int, int], ...] = ()
 
     @classmethod
     def from_sources(
@@ -119,10 +147,12 @@ class MidiListenerConfig:
         channel: str | int | None = None,
         port_name: str | None = None,
         source_name: str | None = None,
+        program_map: str | None = None,
     ) -> MidiListenerConfig:
         env_channel = os.environ.get(ENV_MIDI_CHANNEL)
         env_port_name = os.environ.get(ENV_MIDI_PORT_NAME)
         env_source_name = os.environ.get(ENV_MIDI_SOURCE)
+        env_program_map = os.environ.get(ENV_MIDI_PROGRAM_MAP)
 
         resolved_channel = channel if channel is not None else env_channel
         resolved_port_name = port_name if port_name is not None else env_port_name
@@ -140,4 +170,11 @@ class MidiListenerConfig:
         if source_value == "":
             raise ValueError("MIDI source name cannot be empty")
 
-        return cls(channel=channel_value, port_name=port_value, source_name=source_value)
+        program_map_value = parse_program_map(program_map if program_map is not None else env_program_map)
+
+        return cls(
+            channel=channel_value,
+            port_name=port_value,
+            source_name=source_value,
+            program_map=program_map_value,
+        )

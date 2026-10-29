@@ -1,6 +1,7 @@
 import os
 from unittest.mock import patch
 
+import pytest
 from pytest import raises
 
 from dnafx_preset.config import (
@@ -55,3 +56,36 @@ def test_midi_source_comes_from_environment(monkeypatch) -> None:
 def test_rejects_empty_midi_source() -> None:
     with raises(ValueError, match="MIDI source name cannot be empty"):
         MidiListenerConfig.from_sources(source_name="  ")
+
+
+def test_program_map_defaults_to_empty(monkeypatch) -> None:
+    monkeypatch.delenv("DNAFX_MIDI_PROGRAM_MAP", raising=False)
+
+    assert MidiListenerConfig.from_sources().program_map == ()
+
+
+def test_parses_program_map() -> None:
+    config = MidiListenerConfig.from_sources(program_map=" 0=49, 1=50,2 = 51,3=187, ")
+
+    assert config.program_map == ((0, 49), (1, 50), (2, 51), (3, 187))
+
+
+def test_program_map_comes_from_environment(monkeypatch) -> None:
+    monkeypatch.setenv("DNAFX_MIDI_PROGRAM_MAP", "3=187")
+
+    assert MidiListenerConfig.from_sources().program_map == ((3, 187),)
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("0:49", "PROGRAM=SLOT"),
+        ("x=49", "Invalid integer value"),
+        ("128=1", "between 0 and 127"),
+        ("0=0", "at least 1"),
+        ("0=49,0=50", "mapped more than once"),
+    ],
+)
+def test_rejects_invalid_program_maps(value: str, message: str) -> None:
+    with raises(ValueError, match=message):
+        MidiListenerConfig.from_sources(program_map=value)

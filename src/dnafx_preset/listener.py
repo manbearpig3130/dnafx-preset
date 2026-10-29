@@ -48,6 +48,7 @@ class MidiProgramChangeListener:
         channel: int = 0,
         port_name: str = "DNAfx Preset In",
         source_name: str | None = None,
+        program_map: Sequence[tuple[int, int]] = (),
         slot_count: int | None = None,
         midi_in_factory: Callable[[], MidiInputProtocol] | None = None,
         error_handler: Callable[[Exception], None] | None = None,
@@ -58,11 +59,15 @@ class MidiProgramChangeListener:
         resolved_slot_count = slot_count if slot_count is not None else self._infer_slot_count(client)
         if resolved_slot_count < 1:
             raise ValueError("Slot count must be at least 1")
+        for program, slot_number in program_map:
+            if slot_number < 1 or slot_number > resolved_slot_count:
+                raise ValueError(f"Program {program} maps to slot {slot_number}; slots are 1 to {resolved_slot_count}")
 
         self.client = client
         self.channel = channel
         self.port_name = port_name
         self.source_name = source_name
+        self.program_map = dict(program_map)
         self.slot_count = resolved_slot_count
         self._midi_in_factory = midi_in_factory or self._default_midi_in_factory
         self._error_handler = error_handler
@@ -176,6 +181,8 @@ class MidiProgramChangeListener:
     def _resolve_slot_number(self, program: int, bank: int) -> int | None:
         if program < 0 or program > 127:
             return None
+        if bank == 0 and program in self.program_map:
+            return self.program_map[program]
 
         slot_number = bank * 128 + program + 1
         if slot_number < 1 or slot_number > self.slot_count:
