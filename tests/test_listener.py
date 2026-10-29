@@ -1,4 +1,6 @@
 from dnafx_preset.listener import MidiProgramChangeListener
+from dnafx_preset.tone_map import ToneMap
+from song_tone_samples import PURSUIT_OF_VIKINGS, ROOSTER, sysex
 
 
 class FakeCatalog:
@@ -25,6 +27,10 @@ class FakeMidiIn:
         self._messages = list(messages)
         self.opened_port_name: str | None = None
         self.closed = False
+        self.ignored_sysex: bool | None = None
+
+    def ignore_types(self, sysex: bool = True, timing: bool = True, active_sense: bool = True) -> None:
+        self.ignored_sysex = sysex
 
     def open_virtual_port(self, port_name: str) -> None:
         self.opened_port_name = port_name
@@ -240,3 +246,98 @@ def test_program_map_rejects_slots_the_device_does_not_have() -> None:
 
     with pytest.raises(ValueError, match="slots are 1 to 200"):
         MidiProgramChangeListener(FakeClient(slot_count=200), program_map=((0, 201),))
+
+
+
+def make_song_listener(client: FakeClient, statuses: list[str] | None = None, **options: object) -> MidiProgramChangeListener:
+    return MidiProgramChangeListener(
+        client,
+        channel=0,
+        program_map=((0, 49), (1, 50), (2, 51), (3, 187)),
+        status_handler=statuses.append if statuses is not None else None,
+        **options,  # type: ignore[arg-type]
+    )
+
+
+def test_song_tones_switch_to_the_first_tone_and_map_its_programs() -> None:
+    client = FakeClient()
+    listener = make_song_listener(client)
+
+    assert listener.process_message(sysex(ROOSTER)) == 49
+    assert listener.process_message([0xC0, 9]) == 50
+    assert listener.process_message([0xC0, 10]) == 187
+    assert client.switch_calls == [49, 50, 187]
+
+
+def test_song_tones_use_the_tone_map_and_report_each_tone() -> None:
+    client = FakeClient()
+    statuses: list[str] = []
+    tone_map = ToneMap.from_dict({"categories": {"Heavy": 51}, "artists": {"Amon Amarth": {"Lead": 190}}})
+    listener = make_song_listener(client, statuses, tone_map=tone_map)
+
+    listener.process_message(sysex(PURSUIT_OF_VIKINGS))
+    listener.process_message([0xC0, 9])
+
+    assert client.switch_calls == [51, 190]
+    assert statuses == [
+        "Song: The Pursuit of Vikings by Amon Amarth (Metal), amonpurs_lead",
+        "  program 8: amonpurs_dist, Heavy -> slot 51 (category)",
+        "  program 9: amonpurs_lead, Lead -> slot 190 (artist 'Amon Amarth')",
+    ]
+
+
+def test_a_new_song_switches_even_when_its_first_program_played_last() -> None:
+    # RS Companion sends no Program Change when the next song's first tone has the same program
+    client = FakeClient()
+    listener = make_song_listener(client)
+
+    listener.process_message(sysex(ROOSTER))
+    listener.process_message(sysex(PURSUIT_OF_VIKINGS))
+
+    assert client.switch_calls == [49, 51]
+
+
+def test_the_same_song_described_again_keeps_the_current_tone() -> None:
+    client = FakeClient()
+    listener = make_song_listener(client)
+
+    listener.process_message(sysex(ROOSTER))
+    listener.process_message([0xC0, 10])
+    listener.process_message(sysex(ROOSTER))
+
+    assert client.switch_calls == [49, 187, 187]
+
+
+def test_category_programs_still_work_alongside_song_tones() -> None:
+    client = FakeClient()
+    listener = make_song_listener(client)
+
+    listener.process_message(sysex(ROOSTER))
+    assert listener.process_message([0xC0, 2]) == 51
+    assert listener.process_message([0xC0, 11]) == 12
+
+
+def test_other_sysex_is_ignored() -> None:
+    client = FakeClient()
+    listener = make_song_listener(client)
+
+    assert listener.process_message(sysex(ROOSTER, manufacturer=0x41)) is None
+    assert client.switch_calls == []
+
+
+def test_listen_receives_sysex() -> None:
+    midi_in = FakeMidiIn([(sysex(ROOSTER), 0.0)])
+    client = FakeClient()
+    listener = make_song_listener(client, midi_in_factory=lambda: midi_in, idle_sleep=0.0)
+
+    listener.listen()
+
+    assert midi_in.ignored_sysex is False
+    assert client.switch_calls == [49]
+
+
+def test_rejects_a_tone_map_with_slots_the_device_does_not_have() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="slot 201"):
+        MidiProgramChangeListener(FakeClient(), tone_map=ToneMap.from_dict({"categories": {"Lead": 201}}))

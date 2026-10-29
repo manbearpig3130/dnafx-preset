@@ -1,0 +1,30 @@
+# Rules for `dnafx-preset listen --config`: a DNAfx slot for each tone that RS Companion's song
+# tone messages describe. The first rule that matches a tone wins, in the order of the sections
+# below (songs first, categories last). Names match without regard to case.
+
+# 1. A song, by title: a tone key (as the listener prints it), then a category
+# [songs."Put Your Back into the Oar"]
+# Lead = 190
+
+# 2. An artist: a category
+# [artists."Amon Amarth"]
+# Heavy = 51
+
+# 3. A category with an effect: chorus, flanger, phaser, tremolo or vibe, then modulation, then delay
+# [effects.Clean]
+# modulation = 52
+# [effects.Lead]
+# delay = 188
+
+# 4. RS Companion's style label for the song (Soft, Classic rock and Metal by default): a category
+# [styles.Metal]
+# Heavy = 51
+# [styles."Classic rock"]
+# Heavy = 50
+
+# 5. The category alone
+[categories]
+Clean = 49
+Crunch = 50
+Heavy = 51
+Lead = 187

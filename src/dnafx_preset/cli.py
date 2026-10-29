@@ -16,6 +16,7 @@ from .config import (
 )
 from .listener import MidiProgramChangeListener
 from .presets import PresetSelection
+from .tone_map import ToneMap
 
 
 def build_parser() -> ArgumentParser:
@@ -84,6 +85,11 @@ def build_parser() -> ArgumentParser:
             "for example 0=49,1=50,2=51,3=187; other programs select slot program+1"
         ),
     )
+    listen_parser.add_argument(
+        "--config",
+        default=None,
+        help="TOML file with rules that pick a slot for each tone RS Companion's song tone messages describe",
+    )
 
     return parser
 
@@ -108,6 +114,7 @@ def build_listener_config(args: Namespace) -> MidiListenerConfig:
         port_name=args.midi_port_name,
         source_name=args.midi_source,
         program_map=args.midi_program_map,
+        config_file=args.config,
     )
 
 
@@ -123,6 +130,7 @@ def build_listener(
         port_name=listener_config.port_name,
         source_name=listener_config.source_name,
         program_map=listener_config.program_map,
+        tone_map=ToneMap.load(listener_config.config_file) if listener_config.config_file is not None else None,
         error_handler=error_handler,
         status_handler=status_handler,
     )

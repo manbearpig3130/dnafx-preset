@@ -92,3 +92,33 @@ def test_listen_passes_program_map_to_the_listener_config() -> None:
     args = build_parser().parse_args(["listen", "--midi-program-map", "0=49,1=50,2=51,3=187"])
 
     assert build_listener_config(args).program_map == ((0, 49), (1, 50), (2, 51), (3, 187))
+
+
+class FakeCatalogClient(FakeClient):
+    class catalog:
+        slot_count = 200
+
+
+def test_listen_loads_the_tone_map_from_config(tmp_path) -> None:
+    from dnafx_preset.cli import build_listener, build_parser
+
+    config = tmp_path / "tones.toml"
+    config.write_text("[categories]\nHeavy = 51\n", encoding="utf-8")
+    args = build_parser().parse_args(["listen", "--config", str(config)])
+
+    with patch("dnafx_preset.cli.build_client", return_value=FakeCatalogClient()):
+        listener = build_listener(args)
+
+    assert listener.tone_map is not None and listener.tone_map.categories == (("Heavy", 51),)
+
+
+def test_listen_reports_an_invalid_config(tmp_path) -> None:
+    config = tmp_path / "tones.toml"
+    config.write_text("[categories]\nHeavy = 0\n", encoding="utf-8")
+    stderr = StringIO()
+
+    with patch("dnafx_preset.cli.build_client", return_value=FakeCatalogClient()):
+        exit_code = main(["listen", "--config", str(config)], stdout=StringIO(), stderr=stderr)
+
+    assert exit_code == 1
+    assert "'categories.Heavy' must be a slot number" in stderr.getvalue()

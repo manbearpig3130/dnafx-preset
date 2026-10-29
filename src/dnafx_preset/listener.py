@@ -3,6 +3,9 @@ from __future__ import annotations
 import time
 from typing import Callable, Protocol, Sequence, cast
 
+from .song_tones import CATEGORIES, SongTone, SongTones, parse_song_tones
+from .tone_map import ToneChoice, ToneMap
+
 
 class MidiInputProtocol(Protocol):
     def open_virtual_port(self, port_name: str) -> None:
@@ -12,6 +15,9 @@ class MidiInputProtocol(Protocol):
         ...
 
     def open_port(self, port: int = 0, name: str | None = None) -> None:
+        ...
+
+    def ignore_types(self, sysex: bool = True, timing: bool = True, active_sense: bool = True) -> None:
         ...
 
     def get_message(self) -> tuple[list[int], float] | None:
@@ -49,6 +55,7 @@ class MidiProgramChangeListener:
         port_name: str = "DNAfx Preset In",
         source_name: str | None = None,
         program_map: Sequence[tuple[int, int]] = (),
+        tone_map: ToneMap | None = None,
         slot_count: int | None = None,
         midi_in_factory: Callable[[], MidiInputProtocol] | None = None,
         error_handler: Callable[[Exception], None] | None = None,
@@ -62,24 +69,36 @@ class MidiProgramChangeListener:
         for program, slot_number in program_map:
             if slot_number < 1 or slot_number > resolved_slot_count:
                 raise ValueError(f"Program {program} maps to slot {slot_number}; slots are 1 to {resolved_slot_count}")
+        for slot_number in tone_map.slots() if tone_map is not None else []:
+            if slot_number > resolved_slot_count:
+                raise ValueError(f"The tone map uses slot {slot_number}; slots are 1 to {resolved_slot_count}")
 
         self.client = client
         self.channel = channel
         self.port_name = port_name
         self.source_name = source_name
         self.program_map = dict(program_map)
+        self.tone_map = tone_map
         self.slot_count = resolved_slot_count
         self._midi_in_factory = midi_in_factory or self._default_midi_in_factory
         self._error_handler = error_handler
         self._status_handler = status_handler
         self._idle_sleep = idle_sleep
         self._source_check_interval = source_check_interval
+        # The song RS Companion described last, the slot for each of its tones' programs, and the
+        # song tone program that played last
+        self._song: SongTones | None = None
+        self._song_slots: dict[int, int] = {}
+        self._song_program: int | None = None
 
     def process_message(self, message: Sequence[int]) -> int | None:
         if not message:
             return None
 
         status = message[0]
+        if status == 0xF0:
+            return self._process_song_tones(message)
+
         message_type = status & 0xF0
         if message_type != 0xC0 or len(message) < 2:
             return None
@@ -90,15 +109,61 @@ class MidiProgramChangeListener:
             return None
 
         program = message[1]
-        slot_number = self._resolve_slot_number(program, bank)
+        if bank == 0 and program in self._song_slots:
+            self._song_program = program
+            slot_number = self._song_slots[program]
+        else:
+            slot_number = self._resolve_slot_number(program, bank)
         if slot_number is None:
             return None
 
         self.client.switch(slot_number)
         return slot_number
 
+    def _process_song_tones(self, message: Sequence[int]) -> int | None:
+        song = parse_song_tones(message)
+        if song is None:
+            return None
+
+        style = f" ({song.style})" if song.style else ""
+        self._report_status(f"Song: {song.song} by {song.artist}{style}, {song.arrangement}")
+        slots: dict[int, int] = {}
+        for tone in song.tones:
+            choice = self._choose_slot(song, tone)
+            effects = "".join(f" +{effect}" for effect in (tone.modulation, tone.delay and "delay") if effect)
+            target = f"slot {choice.slot_number} ({choice.rule})" if choice else "no slot"
+            self._report_status(f"  program {tone.program}: {tone.key}, {tone.category}{effects} -> {target}")
+            if choice is not None:
+                slots[tone.program] = choice.slot_number
+
+        # RS Companion sends a Program Change only when the program changes, so a song whose first tone
+        # has the same program as the last song's tone gets none: switch to the first tone here. When it
+        # describes the same arrangement again (its mapping changed), keep playing the current tone.
+        if not song.same_arrangement(self._song):
+            self._song_program = song.tones[0].program if song.tones else None
+        self._song = song
+        self._song_slots = slots
+
+        slot_number = slots.get(self._song_program) if self._song_program is not None else None
+        if slot_number is None:
+            return None
+        self.client.switch(slot_number)
+        return slot_number
+
+    def _choose_slot(self, song: SongTones, tone: SongTone) -> ToneChoice | None:
+        if self.tone_map is not None:
+            choice = self.tone_map.choose(song, tone)
+            if choice is not None:
+                return choice
+
+        # Otherwise the program RS Companion sends for the tone's category by default (Clean 0 to Lead 3)
+        program = CATEGORIES.index(tone.category)
+        slot_number = self._resolve_slot_number(program, 0)
+        return ToneChoice(slot_number, f"program {program}") if slot_number is not None else None
+
     def listen(self) -> None:
         midi_in = self._midi_in_factory()
+        midi_in.ignore_types(sysex=False)  # RS Companion's song tone messages
         if self.source_name is None:
             try:
                 midi_in.open_virtual_port(self.port_name)

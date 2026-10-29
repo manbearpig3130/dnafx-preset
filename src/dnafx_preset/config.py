@@ -14,6 +14,7 @@ ENV_MIDI_CHANNEL = "DNAFX_MIDI_CHANNEL"
 ENV_MIDI_PORT_NAME = "DNAFX_MIDI_PORT_NAME"
 ENV_MIDI_SOURCE = "DNAFX_MIDI_SOURCE"
 ENV_MIDI_PROGRAM_MAP = "DNAFX_MIDI_PROGRAM_MAP"
+ENV_CONFIG = "DNAFX_CONFIG"
 
 DEFAULT_VENDOR_ID = 0x0483
 DEFAULT_PRODUCT_ID = 0x5703
@@ -139,6 +140,7 @@ class MidiListenerConfig:
     port_name: str
     source_name: str | None = None
     program_map: tuple[tuple[int, int], ...] = ()
+    config_file: Path | None = None
 
     @classmethod
     def from_sources(
@@ -148,11 +150,13 @@ class MidiListenerConfig:
         port_name: str | None = None,
         source_name: str | None = None,
         program_map: str | None = None,
+        config_file: str | os.PathLike[str] | None = None,
     ) -> MidiListenerConfig:
         env_channel = os.environ.get(ENV_MIDI_CHANNEL)
         env_port_name = os.environ.get(ENV_MIDI_PORT_NAME)
         env_source_name = os.environ.get(ENV_MIDI_SOURCE)
         env_program_map = os.environ.get(ENV_MIDI_PROGRAM_MAP)
+        env_config_file = os.environ.get(ENV_CONFIG)
 
         resolved_channel = channel if channel is not None else env_channel
         resolved_port_name = port_name if port_name is not None else env_port_name
@@ -172,9 +176,13 @@ class MidiListenerConfig:
 
         program_map_value = parse_program_map(program_map if program_map is not None else env_program_map)
 
+        resolved_config_file = config_file if config_file is not None else env_config_file
+        config_file_value = Path(resolved_config_file).expanduser() if resolved_config_file else None
+
         return cls(
             channel=channel_value,
             port_name=port_value,
             source_name=source_value,
             program_map=program_map_value,
+            config_file=config_file_value,
         )

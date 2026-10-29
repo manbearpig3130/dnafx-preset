@@ -93,6 +93,26 @@ dnafx-preset listen --midi-source "Rocksmith Companion" --midi-program-map 0=49,
 
 This selects P049 for Clean, P050 for Crunch, P051 for Heavy and P187 for Lead.
 
+### Song tones
+
+With **Describe each song's tones** and **Play them with Program Changes** on (RS Companion's Settings › Song tone messages), RS Companion describes a song's tones in a SysEx message when the song loads: each tone's key, category (Clean, Crunch, Heavy or Lead) and effects, and a style label for the song. During the song it plays tone *i* with Program Change 8 + *i*. The listener picks a slot for each tone when the message arrives, and switches to the first tone right away: RS Companion sends no Program Change when the next song's first tone has the same program number as the last song's tone.
+
+Without a config file, a tone gets the slot of its category's program (Clean 0, Crunch 1, Heavy 2, Lead 3), so `--midi-program-map 0=49,1=50,2=51,3=187` keeps working. With `--config` (or `DNAFX_CONFIG`), a TOML file of rules picks the slots, and the first rule that matches a tone wins:
+
+1. `[songs."Title"]`: a tone key, then a category
+2. `[artists."Name"]`: a category
+3. `[effects.Category]`: the tone's modulation (`chorus`, `flanger`, `phaser`, `tremolo` or `vibe`), then `modulation`, then `delay`
+4. `[styles."Label"]`: a category
+5. `[categories]`
+
+A tone that no rule matches gets its category's program, as without a config file. [examples/tones.toml](examples/tones.toml) shows every kind of rule.
+
+```bash
+dnafx-preset listen --midi-source "Rocksmith Companion" --config examples/tones.toml
+```
+
+For each song, the listener prints the slot it picked for each tone and the rule that picked it. RS Companion's style label comes from how driven the tone the song's rhythm part plays longest is, so a song with a clean verse can be labelled Soft. Correct it with `song_styles` in RS Companion's `presets.json`, or use artist and song rules.
+
 ## Examples
 
 ```bash
@@ -101,6 +121,7 @@ dnafx-preset listen
 dnafx-preset listen --midi-channel 0 --midi-port-name "DNAfx Preset In"
 dnafx-preset listen --midi-source "Rocksmith Companion"
 dnafx-preset listen --midi-source "Rocksmith Companion" --midi-program-map 0=49,1=50,2=51,3=187
+dnafx-preset listen --midi-source "Rocksmith Companion" --config examples/tones.toml
 dnafx-preset --vendor-id 0483 --product-id 5703 set 1
 sudo dnafx-preset --transport usb --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1
 ```

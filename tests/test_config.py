@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -89,3 +90,15 @@ def test_program_map_comes_from_environment(monkeypatch) -> None:
 def test_rejects_invalid_program_maps(value: str, message: str) -> None:
     with raises(ValueError, match=message):
         MidiListenerConfig.from_sources(program_map=value)
+
+
+def test_config_file_comes_from_environment(monkeypatch) -> None:
+    monkeypatch.setenv("DNAFX_CONFIG", "~/tones.toml")
+
+    assert MidiListenerConfig.from_sources().config_file == Path("~/tones.toml").expanduser()
+
+
+def test_config_file_defaults_to_none(monkeypatch) -> None:
+    monkeypatch.delenv("DNAFX_CONFIG", raising=False)
+
+    assert MidiListenerConfig.from_sources().config_file is None

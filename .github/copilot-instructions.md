@@ -12,6 +12,8 @@ config.py       DeviceConfig and MidiListenerConfig — parse CLI args and env v
 client.py       DnafxPresetClient — orchestrates catalog lookup + transport write
 presets.py      PresetCatalog — maps slot numbers to byte payloads; PresetSelection is the result type
 protocol.py     DNAfx message framing and CRC-16/GSM; preset_change_message() for slots 1–200
+song_tones.py   parse_song_tones() — RS Companion's song tone SysEx (F0 7D JSON F7) into frozen SongTones
+tone_map.py     ToneMap — TOML rules (--config) picking a slot per song tone: songs, artists, effects, styles, categories
 hid_transport.py  HIDTransport — default; wraps hidapi; opens the device for each write; no sudo
 transport.py    USBTransport — wraps pyusb; lazy-loads the library; handles pipe-error recovery
 listener.py     MidiProgramChangeListener — polls rtmidi for Program Change on a virtual input or a named source; maps channels/banks to slots

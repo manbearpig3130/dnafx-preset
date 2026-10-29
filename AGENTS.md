@@ -27,6 +27,8 @@
 - `src/dnafx_preset/listener.py`: MIDI listener on a virtual input or another app's MIDI source.
 - `src/dnafx_preset/presets.py`: preset catalog and JSON override loading.
 - `src/dnafx_preset/protocol.py`: DNAfx message framing, CRC and the preset change message.
+- `src/dnafx_preset/song_tones.py`: parses RS Companion's song tone SysEx.
+- `src/dnafx_preset/tone_map.py`: TOML rules (`--config`) that pick a slot for each song tone.
 
 ## Test Patterns
 
@@ -38,6 +40,7 @@
 | `config.py` | env vars | `monkeypatch.setenv(...)` |
 | `transport.py` | inject device directly | `USBTransport(..., device=fake_device)` |
 | `hid_transport.py` | `FakeHIDDevice` | `HIDTransport(..., device_factory=lambda: fake_device)` |
+| `song_tones.py`, `tone_map.py` | nothing; build messages with `tests/song_tone_samples.py` | `parse_song_tones(sysex(ROOSTER))`, `ToneMap.from_dict(...)` |
 
 ## How to Extend
 
