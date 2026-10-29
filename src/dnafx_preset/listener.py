@@ -8,6 +8,12 @@ class MidiInputProtocol(Protocol):
     def open_virtual_port(self, port_name: str) -> None:
         ...
 
+    def get_ports(self) -> list[str]:
+        ...
+
+    def open_port(self, port: int = 0, name: str | None = None) -> None:
+        ...
+
     def get_message(self) -> tuple[list[int], float] | None:
         ...
 
@@ -41,10 +47,13 @@ class MidiProgramChangeListener:
         *,
         channel: int = 0,
         port_name: str = "DNAfx Preset In",
+        source_name: str | None = None,
         slot_count: int | None = None,
         midi_in_factory: Callable[[], MidiInputProtocol] | None = None,
         error_handler: Callable[[Exception], None] | None = None,
+        status_handler: Callable[[str], None] | None = None,
         idle_sleep: float = 0.01,
+        source_check_interval: float = 1.0,
     ):
         resolved_slot_count = slot_count if slot_count is not None else self._infer_slot_count(client)
         if resolved_slot_count < 1:
@@ -53,10 +62,13 @@ class MidiProgramChangeListener:
         self.client = client
         self.channel = channel
         self.port_name = port_name
+        self.source_name = source_name
         self.slot_count = resolved_slot_count
         self._midi_in_factory = midi_in_factory or self._default_midi_in_factory
         self._error_handler = error_handler
+        self._status_handler = status_handler
         self._idle_sleep = idle_sleep
+        self._source_check_interval = source_check_interval
 
     def process_message(self, message: Sequence[int]) -> int | None:
         if not message:
@@ -82,28 +94,77 @@ class MidiProgramChangeListener:
 
     def listen(self) -> None:
         midi_in = self._midi_in_factory()
-        try:
-            midi_in.open_virtual_port(self.port_name)
-        except Exception as exc:
-            raise MidiListenerError(f"Unable to open virtual MIDI input '{self.port_name}': {exc}") from exc
+        if self.source_name is None:
+            try:
+                midi_in.open_virtual_port(self.port_name)
+            except Exception as exc:
+                raise MidiListenerError(f"Unable to open virtual MIDI input '{self.port_name}': {exc}") from exc
 
         try:
-            while True:
-                message = midi_in.get_message()
-                if message is None:
-                    time.sleep(self._idle_sleep)
-                    continue
-
-                payload, _delta = message
-                try:
-                    self.process_message(payload)
-                except Exception as exc:
-                    if self._error_handler is not None:
-                        self._error_handler(exc)
+            if self.source_name is None:
+                self._receive(midi_in)
+            else:
+                self._follow_source(midi_in, self.source_name)
         except KeyboardInterrupt:
             return
         finally:
             self._close_midi_in(midi_in)
+
+    def _follow_source(self, midi_in: MidiInputProtocol, source_name: str) -> None:
+        # Connect to another app's MIDI source (e.g. RS Companion's "Rocksmith Companion"), waiting for
+        # it to appear, and connect again when the app quits and starts again.
+        while True:
+            index, port = self._wait_for_source(midi_in, source_name)
+            try:
+                midi_in.open_port(index, self.port_name)
+            except Exception as exc:
+                raise MidiListenerError(f"Unable to connect to MIDI source '{port}': {exc}") from exc
+
+            self._report_status(f"Connected to MIDI source '{port}'")
+            self._receive(midi_in, port)
+            midi_in.close_port()
+            self._report_status(f"MIDI source '{port}' went away; waiting for it to come back")
+
+    def _wait_for_source(self, midi_in: MidiInputProtocol, source_name: str) -> tuple[int, str]:
+        reported = False
+        while True:
+            wanted = source_name.casefold()
+            for index, port in enumerate(midi_in.get_ports()):
+                if wanted in port.casefold():
+                    return index, port
+
+            if not reported:
+                self._report_status(f"Waiting for a MIDI source named '{source_name}'")
+                reported = True
+            time.sleep(self._source_check_interval)
+
+    def _receive(self, midi_in: MidiInputProtocol, source_port: str | None = None) -> None:
+        # Returns only when source_port is given and no longer exists
+        next_check = time.monotonic() + self._source_check_interval
+        while True:
+            message = midi_in.get_message()
+            if message is None:
+                if source_port is not None and time.monotonic() >= next_check:
+                    if source_port not in midi_in.get_ports():
+                        return
+                    next_check = time.monotonic() + self._source_check_interval
+                time.sleep(self._idle_sleep)
+                continue
+
+            payload, _delta = message
+            try:
+                slot_number = self.process_message(payload)
+            except Exception as exc:
+                if self._error_handler is not None:
+                    self._error_handler(exc)
+                continue
+
+            if slot_number is not None:
+                self._report_status(f"Switched to slot {slot_number}")
+
+    def _report_status(self, message: str) -> None:
+        if self._status_handler is not None:
+            self._status_handler(message)
 
     def _resolve_bank(self, incoming_channel: int) -> int | None:
         if incoming_channel == self.channel:

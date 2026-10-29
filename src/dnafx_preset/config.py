@@ -12,6 +12,7 @@ ENV_PRESETS_FILE = "DNAFX_PRESETS_FILE"
 ENV_TRANSPORT = "DNAFX_TRANSPORT"
 ENV_MIDI_CHANNEL = "DNAFX_MIDI_CHANNEL"
 ENV_MIDI_PORT_NAME = "DNAFX_MIDI_PORT_NAME"
+ENV_MIDI_SOURCE = "DNAFX_MIDI_SOURCE"
 
 DEFAULT_VENDOR_ID = 0x0483
 DEFAULT_PRODUCT_ID = 0x5703
@@ -109,6 +110,7 @@ class DeviceConfig:
 class MidiListenerConfig:
     channel: int
     port_name: str
+    source_name: str | None = None
 
     @classmethod
     def from_sources(
@@ -116,12 +118,15 @@ class MidiListenerConfig:
         *,
         channel: str | int | None = None,
         port_name: str | None = None,
+        source_name: str | None = None,
     ) -> MidiListenerConfig:
         env_channel = os.environ.get(ENV_MIDI_CHANNEL)
         env_port_name = os.environ.get(ENV_MIDI_PORT_NAME)
+        env_source_name = os.environ.get(ENV_MIDI_SOURCE)
 
         resolved_channel = channel if channel is not None else env_channel
         resolved_port_name = port_name if port_name is not None else env_port_name
+        resolved_source_name = source_name if source_name is not None else env_source_name
 
         channel_value = 0 if resolved_channel is None else parse_int(resolved_channel, field_name=ENV_MIDI_CHANNEL)
         if channel_value < 0 or channel_value > 15:
@@ -131,4 +136,8 @@ class MidiListenerConfig:
         if not port_value:
             raise ValueError("MIDI port name cannot be empty")
 
-        return cls(channel=channel_value, port_name=port_value)
+        source_value = resolved_source_name.strip() if resolved_source_name is not None else None
+        if source_value == "":
+            raise ValueError("MIDI source name cannot be empty")
+
+        return cls(channel=channel_value, port_name=port_value, source_name=source_value)

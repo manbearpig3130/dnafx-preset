@@ -24,7 +24,7 @@
 - `src/dnafx_preset/client.py`: preset-switching orchestration.
 - `src/dnafx_preset/hid_transport.py`: HID transport (default; hidapi, no sudo).
 - `src/dnafx_preset/transport.py`: USB transport wrapper (pyusb).
-- `src/dnafx_preset/listener.py`: virtual MIDI input listener.
+- `src/dnafx_preset/listener.py`: MIDI listener on a virtual input or another app's MIDI source.
 - `src/dnafx_preset/presets.py`: preset catalog and JSON override loading.
 - `src/dnafx_preset/protocol.py`: DNAfx message framing, CRC and the preset change message.
 

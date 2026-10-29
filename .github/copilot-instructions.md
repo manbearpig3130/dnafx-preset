@@ -2,7 +2,7 @@
 
 ## Project
 
-CLI and library for switching presets on a DNAfx GiT guitar processor over USB. Two commands: `set <slot>` sends a preset payload directly; `listen` opens a virtual MIDI input and bridges Program Change events to USB.
+CLI and library for switching presets on a DNAfx GiT guitar processor over USB. Two commands: `set <slot>` sends a preset payload directly; `listen` opens a virtual MIDI input, or connects to another app's MIDI source, and bridges Program Change events to USB.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ presets.py      PresetCatalog — maps slot numbers to byte payloads; PresetSele
 protocol.py     DNAfx message framing and CRC-16/GSM; preset_change_message() for slots 1–200
 hid_transport.py  HIDTransport — default; wraps hidapi; opens the device for each write; no sudo
 transport.py    USBTransport — wraps pyusb; lazy-loads the library; handles pipe-error recovery
-listener.py     MidiProgramChangeListener — polls rtmidi for Program Change; maps channels/banks to slots
+listener.py     MidiProgramChangeListener — polls rtmidi for Program Change on a virtual input or a named source; maps channels/banks to slots
 ```
 
 Each hardware dependency (`usb`, `rtmidi`) is hidden behind a `Protocol`:

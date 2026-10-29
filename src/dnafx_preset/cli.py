@@ -68,6 +68,14 @@ def build_parser() -> ArgumentParser:
         default=None,
         help="Virtual MIDI input port name (default: DNAfx Preset In)",
     )
+    listen_parser.add_argument(
+        "--midi-source",
+        default=None,
+        help=(
+            "Instead of a virtual input, connect to the MIDI source whose name contains this text, "
+            "for example 'Rocksmith Companion'; waits for it to appear and reconnects when it comes back"
+        ),
+    )
 
     return parser
 
@@ -87,19 +95,26 @@ def build_client(args: Namespace) -> DnafxPresetClient:
 
 
 def build_listener_config(args: Namespace) -> MidiListenerConfig:
-    return MidiListenerConfig.from_sources(channel=args.midi_channel, port_name=args.midi_port_name)
+    return MidiListenerConfig.from_sources(
+        channel=args.midi_channel,
+        port_name=args.midi_port_name,
+        source_name=args.midi_source,
+    )
 
 
 def build_listener(
     args: Namespace,
     error_handler: Callable[[Exception], None] | None = None,
+    status_handler: Callable[[str], None] | None = None,
 ) -> MidiProgramChangeListener:
     listener_config = build_listener_config(args)
     return MidiProgramChangeListener(
         build_client(args),
         channel=listener_config.channel,
         port_name=listener_config.port_name,
+        source_name=listener_config.source_name,
         error_handler=error_handler,
+        status_handler=status_handler,
     )
 
 
@@ -118,12 +133,20 @@ def handle_listen(args: Namespace, stdout: TextIO, stderr: TextIO) -> int:
     def report_error(exc: Exception) -> None:
         stderr.write(f"Error: {exc}\n")
 
-    listener = build_listener(args, report_error)
+    def report_status(message: str) -> None:
+        stdout.write(f"{message}\n")
+        stdout.flush()
+
+    listener = build_listener(args, report_error, report_status)
     channel_text = f"raw channel {listener.channel}"
     if listener.channel < 15:
         channel_text = f"raw channels {listener.channel} and {listener.channel + 1}"
 
-    stdout.write(f"Listening on virtual MIDI input '{listener.port_name}' for Program Change on {channel_text}\n")
+    if listener.source_name is None:
+        stdout.write(f"Listening on virtual MIDI input '{listener.port_name}' for Program Change on {channel_text}\n")
+    else:
+        stdout.write(f"Listening to MIDI source '{listener.source_name}' for Program Change on {channel_text}\n")
+    stdout.flush()
     listener.listen()
     return 0
 

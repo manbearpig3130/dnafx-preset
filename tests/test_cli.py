@@ -1,3 +1,4 @@
+from argparse import Namespace
 from io import StringIO
 from unittest.mock import patch
 
@@ -18,9 +19,16 @@ class FakeClient:
 
 
 class FakeListener:
-    def __init__(self, *, channel: int = 0, port_name: str = "DNAfx Preset In") -> None:
+    def __init__(
+        self,
+        *,
+        channel: int = 0,
+        port_name: str = "DNAfx Preset In",
+        source_name: str | None = None,
+    ) -> None:
         self.channel = channel
         self.port_name = port_name
+        self.source_name = source_name
         self.listen_calls = 0
 
     def listen(self) -> None:
@@ -52,6 +60,23 @@ def test_listen_uses_listener() -> None:
     assert "Listening on virtual MIDI input 'DNAfx Preset In'" in stdout.getvalue()
     assert "raw channels 0 and 1" in stdout.getvalue()
     assert stderr.getvalue() == ""
+
+
+def test_listen_connects_to_midi_source() -> None:
+    stdout = StringIO()
+    stderr = StringIO()
+    listeners: list[FakeListener] = []
+
+    def fake_build_listener(args: Namespace, *_handlers: object) -> FakeListener:
+        listeners.append(FakeListener(source_name=args.midi_source))
+        return listeners[-1]
+
+    with patch("dnafx_preset.cli.build_listener", side_effect=fake_build_listener):
+        exit_code = main(["listen", "--midi-source", "Rocksmith Companion"], stdout=stdout, stderr=stderr)
+
+    assert exit_code == 0
+    assert listeners[0].listen_calls == 1
+    assert "Listening to MIDI source 'Rocksmith Companion'" in stdout.getvalue()
 
 
 def test_transport_option_rejects_unknown_values() -> None:

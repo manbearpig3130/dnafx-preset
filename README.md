@@ -2,12 +2,12 @@
 
 `dnafx-preset` is a standalone Python library and CLI for switching presets on a DNAfx device.
 
-When run in listener mode, it also exposes a virtual MIDI input port to macOS and translates incoming Program Change messages into DNAfx preset changes.
+When run in listener mode, it also exposes a virtual MIDI input port to macOS, or connects to another app's MIDI source, and translates incoming Program Change messages into DNAfx preset changes.
 
 ## Scope
 
 - Switch to a preset by numeric slot.
-- Listen on a virtual MIDI input and map MIDI Program Change to preset slots.
+- Listen on a virtual MIDI input, or on another app's MIDI source, and map MIDI Program Change to preset slots.
 
 ## Install
 
@@ -50,6 +50,8 @@ With the `usb` transport, `No USB backend available` means `libusb` is missing f
 
 The `listen` command creates a virtual MIDI input port while the process is running. Other MIDI-capable apps on macOS can send to that port, and the app will forward accepted messages to the DNAfx device.
 
+Apps that publish their own MIDI source instead of sending to a port, such as RS Companion, need `--midi-source NAME` (or `DNAFX_MIDI_SOURCE`). The listener then connects to the first MIDI source whose name contains `NAME` (ignoring case), waits for it if it doesn't exist yet, and connects again when the app quits and starts again.
+
 - Default virtual port name: `DNAfx Preset In`
 - Default base listen channel: raw MIDI channel `0` (user-facing MIDI channel 1)
 - Supported messages: Program Change on the base channel or the next channel
@@ -73,12 +75,23 @@ That means:
 
 With a non-default base channel, the same rule still applies: base channel for the lower bank, next channel for the upper bank. Out-of-range bank and program combinations are ignored.
 
+## Rocksmith with RS Companion
+
+[RS Companion](https://github.com/glebb/rs-mac-companion) sends a Program Change on its MIDI source `Rocksmith Companion` when Rocksmith's tone changes category (Clean, Crunch, Heavy, Lead):
+
+```bash
+dnafx-preset listen --midi-source "Rocksmith Companion"
+```
+
+In RS Companion's settings, give each category the program number of the DNAfx slot you want minus one, on MIDI channel 1. For example, programs 50, 11, 12 and 13 select P051, P012, P013 and P014.
+
 ## Examples
 
 ```bash
 dnafx-preset set 1
 dnafx-preset listen
 dnafx-preset listen --midi-channel 0 --midi-port-name "DNAfx Preset In"
+dnafx-preset listen --midi-source "Rocksmith Companion"
 dnafx-preset --vendor-id 0483 --product-id 5703 set 1
 sudo dnafx-preset --transport usb --vendor-id 0483 --product-id 5703 --out-endpoint 02 set 1
 ```

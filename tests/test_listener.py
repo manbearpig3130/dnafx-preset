@@ -29,6 +29,12 @@ class FakeMidiIn:
     def open_virtual_port(self, port_name: str) -> None:
         self.opened_port_name = port_name
 
+    def get_ports(self) -> list[str]:
+        return []
+
+    def open_port(self, port: int = 0, name: str | None = None) -> None:
+        raise AssertionError("a virtual input never opens another port")
+
     def get_message(self) -> tuple[list[int], float] | None:
         if not self._messages:
             raise KeyboardInterrupt()
@@ -108,3 +114,111 @@ def test_listen_reports_switch_errors_and_keeps_port_open() -> None:
     assert midi_in.opened_port_name == "DNAfx Preset In"
     assert errors == ["unable to switch to 1"]
     assert midi_in.closed is True
+
+
+class FakeSourceMidiIn(FakeMidiIn):
+    # get_ports() returns the next list from port_lists each time, repeating the last one
+    def __init__(
+        self,
+        port_lists: list[list[str]],
+        messages: list[tuple[list[int], float] | None | BaseException],
+    ) -> None:
+        super().__init__(messages)
+        self._port_lists = list(port_lists)
+        self.opened_ports: list[tuple[int, str | None]] = []
+        self.close_calls = 0
+
+    def get_ports(self) -> list[str]:
+        if len(self._port_lists) > 1:
+            return self._port_lists.pop(0)
+        return self._port_lists[0]
+
+    def open_port(self, port: int = 0, name: str | None = None) -> None:
+        self.opened_ports.append((port, name))
+
+    def close_port(self) -> None:
+        super().close_port()
+        self.close_calls += 1
+
+
+def make_source_listener(
+    client: FakeClient,
+    midi_in: FakeSourceMidiIn,
+    statuses: list[str],
+    source_name: str = "rocksmith companion",
+) -> MidiProgramChangeListener:
+    return MidiProgramChangeListener(
+        client,
+        channel=0,
+        source_name=source_name,
+        midi_in_factory=lambda: midi_in,
+        status_handler=statuses.append,
+        idle_sleep=0.0,
+        source_check_interval=0.0,
+    )
+
+
+def test_listen_connects_to_a_named_source() -> None:
+    client = FakeClient()
+    statuses: list[str] = []
+    midi_in = FakeSourceMidiIn([["IAC Driver Bus 1", "Rocksmith Companion"]], [([0xC0, 50], 0.0)])
+
+    make_source_listener(client, midi_in, statuses).listen()
+
+    assert midi_in.opened_port_name is None
+    assert midi_in.opened_ports == [(1, "DNAfx Preset In")]
+    assert client.switch_calls == [51]
+    assert statuses == ["Connected to MIDI source 'Rocksmith Companion'", "Switched to slot 51"]
+    assert midi_in.closed is True
+
+
+def test_listen_waits_for_the_source_to_appear() -> None:
+    client = FakeClient()
+    statuses: list[str] = []
+    midi_in = FakeSourceMidiIn([[], ["IAC Driver Bus 1"], ["Rocksmith Companion"]], [([0xC0, 0], 0.0)])
+
+    make_source_listener(client, midi_in, statuses).listen()
+
+    assert statuses == [
+        "Waiting for a MIDI source named 'rocksmith companion'",
+        "Connected to MIDI source 'Rocksmith Companion'",
+        "Switched to slot 1",
+    ]
+    assert client.switch_calls == [1]
+
+
+def test_listen_reconnects_when_the_source_comes_back() -> None:
+    client = FakeClient()
+    statuses: list[str] = []
+    midi_in = FakeSourceMidiIn(
+        [["Rocksmith Companion"], [], ["Launchkey", "Rocksmith Companion"]],
+        [None, ([0xC0, 3], 0.0)],
+    )
+
+    make_source_listener(client, midi_in, statuses).listen()
+
+    assert midi_in.opened_ports == [(0, "DNAfx Preset In"), (1, "DNAfx Preset In")]
+    assert statuses == [
+        "Connected to MIDI source 'Rocksmith Companion'",
+        "MIDI source 'Rocksmith Companion' went away; waiting for it to come back",
+        "Connected to MIDI source 'Rocksmith Companion'",
+        "Switched to slot 4",
+    ]
+    assert client.switch_calls == [4]
+    assert midi_in.close_calls == 2
+
+
+def test_listen_reports_switches_but_not_ignored_messages() -> None:
+    statuses: list[str] = []
+    midi_in = FakeMidiIn([([0xC0, 4], 0.0), ([0xC5, 4], 0.0), ([0xB0, 7, 100], 0.0)])
+    listener = MidiProgramChangeListener(
+        FakeClient(),
+        channel=0,
+        midi_in_factory=lambda: midi_in,
+        status_handler=statuses.append,
+        idle_sleep=0.0,
+    )
+
+    listener.listen()
+
+    assert statuses == ["Switched to slot 5"]
